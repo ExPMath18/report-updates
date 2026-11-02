@@ -506,6 +506,11 @@
   #setModal .centerCard{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;}
   #setModal .chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:8px;}
   #setModal .row2{display:grid;grid-template-columns:1fr 2fr;gap:10px;}
+  #setModal .centersHead{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:18px;}
+  #setModal .centersHead h3{align-self:flex-start;}
+  #setModal .centersHead h3{margin:0;}
+  #setModal #setAdd{padding:9px 18px;font-size:14px;}
+  #setModal select{width:100%;box-sizing:border-box;margin:10px 0 12px 0;border:1px solid var(--line);border-radius:6px;padding:10px;font:inherit;font-size:14px;background:#fff;}
   #setMsg{font-size:13px;margin-top:10px;}
   #setMsg.err{color:var(--down);font-weight:700;}
 </style>
@@ -854,9 +859,12 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
     <p class="sub">Set up your centers once. Everything saves on this device.</p>
     <label class="lbl" for="setStaff">Default sender name</label>
     <input type="text" id="setStaff" placeholder="e.g. Rebecca">
-    <h3>Centers</h3>
+    <div class="centersHead">
+      <h3>Centers</h3>
+      <button type="button" class="btn-primary btn-sm" id="setAdd">+ Add a new center</button>
+    </div>
+    <select id="setCenterSel" aria-label="Choose a center to edit"></select>
     <div id="setCenters"></div>
-    <button type="button" class="btn-secondary btn-sm" id="setAdd">+ Add a center</button>
     <div id="setMsg"></div>
     <div class="btn-row">
       <button type="button" class="btn-primary" id="setSave">Save</button>
@@ -4145,52 +4153,70 @@ applyStaffDefault();
 (function(){
   const $ = id => document.getElementById(id);
   const modal = $('setModal'), msg = $('setMsg');
-  let draft = null;
+  let draft = null, cur = 0;
   const setMsg = (t, err) => { msg.textContent = t; msg.className = err ? 'err' : ''; };
+  const FLAGS = ['scheduling','learningPlan','homework'];
   function readDraftFromDom(){
     draft.staffName = $('setStaff').value.trim();
-    document.querySelectorAll('#setCenters .centerCard').forEach((card,i)=>{
-      const c = draft.centers[i]; if(!c) return;
-      c.label = card.querySelector('[data-f=label]').value;
-      c.name = card.querySelector('[data-f=name]').value;
-      ['scheduling','learningPlan','homework'].forEach(k=>{ c[k] = card.querySelector('[data-f='+k+']').checked; });
+    const card = document.querySelector('#setCenters .centerCard');
+    const c = draft.centers[cur];
+    if(cur<0 || !card || !c) return;
+    c.label = card.querySelector('[data-f=label]').value;
+    c.name = card.querySelector('[data-f=name]').value;
+    FLAGS.forEach(k=>{ c[k] = card.querySelector('[data-f='+k+']').checked; });
+  }
+  function renderSelect(){
+    const sel = $('setCenterSel'); sel.innerHTML = '';
+    const ph = document.createElement('option'); ph.value = '-1'; ph.textContent = 'Select a center...'; sel.appendChild(ph);
+    draft.centers.forEach((c,i)=>{
+      const o = document.createElement('option'); o.value = i; o.textContent = c.label.trim() || '(new center)';
+      sel.appendChild(o);
     });
+    sel.value = String(cur);
   }
   function renderDraft(){
+    if(cur >= draft.centers.length) cur = draft.centers.length - 1;
     $('setStaff').value = draft.staffName;
+    renderSelect();
     const host = $('setCenters'); host.innerHTML = '';
-    draft.centers.forEach((c,i)=>{
-      const card = document.createElement('div'); card.className='centerCard';
-      card.innerHTML =
-        '<div class="row2"><div><label class="lbl">Button label</label><input type="text" data-f="label"></div>'+
-        '<div><label class="lbl">Name used in emails</label><input type="text" data-f="name"></div></div>'+
-        '<label class="chk"><input type="checkbox" data-f="scheduling"><span>We handle scheduling through myMathnasium</span></label>'+
-        '<label class="chk"><input type="checkbox" data-f="learningPlan"><span>We send a Learning Plan document</span></label>'+
-        '<label class="chk"><input type="checkbox" data-f="homework"><span>Include homework policy explanation</span></label>'+
-        '<div class="btn-row" style="margin-top:10px;"><button type="button" class="btn-ghost btn-sm" data-rm="'+i+'">Remove this center</button></div>';
-      card.querySelector('[data-f=label]').value = c.label;
-      card.querySelector('[data-f=name]').value = c.name;
-      ['scheduling','learningPlan','homework'].forEach(k=>{ card.querySelector('[data-f='+k+']').checked = c[k]; });
-      const rm = card.querySelector('[data-rm]');
-      if(draft.centers.length<2) rm.style.display='none';
-      rm.addEventListener('click', ()=>{ readDraftFromDom(); draft.centers.splice(i,1); renderDraft(); });
-      host.appendChild(card);
+    if(cur < 0) return;
+    const c = draft.centers[cur];
+    const card = document.createElement('div'); card.className='centerCard';
+    card.innerHTML =
+      '<div class="row2"><div><label class="lbl">Button label</label><input type="text" data-f="label"></div>'+
+      '<div><label class="lbl">Name used in emails</label><input type="text" data-f="name"></div></div>'+
+      '<label class="chk"><input type="checkbox" data-f="scheduling"><span>We handle scheduling through myMathnasium</span></label>'+
+      '<label class="chk"><input type="checkbox" data-f="learningPlan"><span>We send a Learning Plan document</span></label>'+
+      '<label class="chk"><input type="checkbox" data-f="homework"><span>Include homework policy explanation</span></label>'+
+      '<div class="btn-row" style="margin-top:10px;"><button type="button" class="btn-ghost btn-sm" data-rm="1">Remove this center</button></div>';
+    card.querySelector('[data-f=label]').value = c.label;
+    card.querySelector('[data-f=name]').value = c.name;
+    FLAGS.forEach(k=>{ card.querySelector('[data-f='+k+']').checked = c[k]; });
+    card.querySelector('[data-f=label]').addEventListener('input', e=>{
+      c.label = e.target.value; renderSelect();
     });
+    const rm = card.querySelector('[data-rm]');
+    if(draft.centers.length<2) rm.style.display='none';
+    rm.addEventListener('click', ()=>{ draft.centers.splice(cur,1); cur = -1; renderDraft(); });
+    host.appendChild(card);
   }
   function open(){
-    draft = cloneSettings(settings); setMsg(''); renderDraft(); modal.classList.add('open');
+    draft = cloneSettings(settings); cur = -1; setMsg(''); renderDraft(); modal.classList.add('open');
   }
   $('setOpen').addEventListener('click', open);
   $('setCancel').addEventListener('click', ()=>modal.classList.remove('open'));
+  $('setCenterSel').addEventListener('change', e=>{ readDraftFromDom(); cur = +e.target.value; renderDraft(); });
   $('setAdd').addEventListener('click', ()=>{
     readDraftFromDom();
     if(draft.centers.length>=12) return;
     draft.centers.push({id:'C'+Date.now().toString(36), label:'', name:'Mathnasium of ', scheduling:true, learningPlan:true, homework:false});
-    renderDraft();
+    cur = draft.centers.length-1; renderDraft();
+    const f = document.querySelector('#setCenters [data-f=label]'); if(f) f.focus();
   });
   $('setSave').addEventListener('click', ()=>{
     readDraftFromDom();
-    if(draft.centers.some(c=>!c.label.trim() || !c.name.trim())){ setMsg('Each center needs a button label and a name.', true); return; }
+    const bad = draft.centers.findIndex(c=>!c.label.trim() || !c.name.trim());
+    if(bad>=0){ cur = bad; renderDraft(); setMsg('Each center needs a button label and a name.', true); return; }
     const keep = selectedCenterId();
     settings = cleanSettings(draft);
     settings.lastCenter = settings.centers.some(c=>c.id===keep) ? keep : settings.centers[0].id;
@@ -5172,7 +5198,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
 });
 
 // ===== Bug report =====
-const APP_VERSION = '2026.11.02-f';
+const APP_VERSION = '2026.11.02-j';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
