@@ -1316,6 +1316,11 @@ async function parseLearningPlanReport(file){
       // this point is a real skill topic, stop reading entirely
       if(/^(Center Director|Mathnasium of [A-Za-z ]+\||www\.|\(\d{3}\)\s*\d{3}-\d{4})/i.test(text)){ done = true; break; }
       if(/^Supplemental Topic$/i.test(text)){ done = true; break; }
+      // "Program Timeline" is the last section of the report, after the topic
+      // list. Its intro paragraph runs right up to the icon column, so the
+      // anti-aliased edge of the text can be misread as a grey In-Progress icon
+      // and the sentence ends up as a topic. Nothing after this heading is a topic.
+      if(/^Program Timeline$/i.test(text)){ done = true; break; }
       if(LP_LEGEND_RE.test(text)) continue; // the icon legend line itself, not a topic
       if(headerLines.has(text)) continue; // a repeat of page 1's title/subtitle/name block, not a topic
 
@@ -1538,7 +1543,11 @@ function parseChart(rows){
   const chart = { mode:null, studentName:'', checkup:'', scores:[], dates:[], categories:[] };
   let currentCat = null;
 
-  const isFooter = t => /Mathnasium of [A-Za-z ]+|Page \d+ of \d+/i.test(t);
+  // Page footers span two rows: "10/19/2026 Mathnasium of X | address | Page 1 of 5",
+  // then the center's phone number on its own row. Both have to be skipped, or
+  // the phone number gets read as a category header at every page break.
+  const isFooter = t => /Mathnasium of [A-Za-z ]+|Page \d+ of \d+/i.test(t)
+    || /^\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4}$/.test(t.trim());
   const isPureBracket = t => /^\(?[\d,\s]+\)?$/.test(t.trim());
 
   rows.forEach(row=>{
@@ -1681,6 +1690,44 @@ function parseAssessmentSkillsNames(rows){
     if(m) out.push({name:m[1].trim(), num:m[2], den:m[3]});
   }
   return out.length ? out : null;
+}
+
+/* Third way to read the score cards at the top of a combined report, for
+   layouts the two parsers above can't handle: 3+ side-by-side cards (for
+   example Numerical Fluency + Level 4 + Level 4 Extension in one report),
+   where each card's name wraps over a different number of lines so the
+   fractions never share one row. Every card's title, fraction, and
+   "Skills Mastered" label share the same left x, so each fraction is
+   matched to the title lines stacked directly above it at that x. */
+function parseCardColumns(rows){
+  const joinRow = r => r.map(i=>i.text).join(' ').replace(/\s+/g,' ').trim();
+  const startIdx = rows.findIndex(r => /breakdown of the assessments/i.test(joinRow(r)));
+  if(startIdx < 0) return null;
+  let endIdx = rows.findIndex((r,i) => i>startIdx && /^Assessment Topics$/i.test(joinRow(r)));
+  if(endIdx < 0) endIdx = rows.length;
+  const section = rows.slice(startIdx+1, endIdx);
+  const fracs = [];
+  section.forEach((r,ri)=> r.forEach(it=>{
+    const m = it.text.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+    if(m) fracs.push({ri, x:it.x, num:m[1], den:m[2]});
+  }));
+  if(fracs.length < 2) return null;
+  fracs.sort((a,b)=>a.x-b.x);
+  for(let i=1;i<fracs.length;i++) if(fracs[i].x - fracs[i-1].x < 40) return null; // not distinct columns
+  const legendWord = /^(Skills|Mastered)$/i;
+  const out = [];
+  for(const f of fracs){
+    const parts = [];
+    for(let ri=f.ri-1; ri>=0; ri--){
+      const hit = section[ri].find(it => Math.abs(it.x - f.x) <= 4 && !legendWord.test(it.text.trim()));
+      if(!hit) break;
+      parts.unshift(hit.text.trim());
+    }
+    const name = parts.join(' ').replace(/\s+/g,' ').trim();
+    if(!name) return null;
+    out.push({name, num:f.num, den:f.den});
+  }
+  return out;
 }
 
 function parseNarrativeReport(rows){
@@ -1842,7 +1889,7 @@ function parseNarrativeReport(rows){
           // per assessment under "Assessment Skills" (Isla Hansen's layout).
           // Either shape means the same thing downstream - which assessments
           // this page actually covers - so the two are interchangeable here.
-          topAssessments: parseTwoCardScores(rows) || parseAssessmentSkillsNames(rows)};
+          topAssessments: parseTwoCardScores(rows) || parseAssessmentSkillsNames(rows) || parseCardColumns(rows)};
 }
 
 /* Numerical Fluency shows up as its own category ("Addition and Subtraction
@@ -2287,6 +2334,10 @@ document.getElementById('parseBtn').addEventListener('click', async ()=>{
       const buckets = bucketCategoriesByAssessment(c);
       top.forEach(ta=>{
         if(MAIN_ELIGIBLE_RE.test(ta.name)) return; // this is the main identity, not a leftover
+        // Numerical Fluency is split out from its own category right after
+        // the main assessment is built (with its mastered topics), so adding
+        // it here too would create an empty duplicate card.
+        if(/^Numerical Fluency/i.test(ta.name) && narrativeNfCategories(c.narrative).length) return;
         const ownedCats = buckets[ta.name] || [];
         const masteredTopics = ownedCats.flatMap(cat=>cat.mastered);
         extraCounter++;
@@ -2331,38 +2382,14 @@ document.getElementById('parseBtn').addEventListener('click', async ()=>{
       // of Level 6 Extension's 5/13 AND Level 7's 30/45 - which is wrong for
       // either identity individually. Prefer that specific card's own score
       // from topAssessments whenever one's available.
-      const ownScoreFor = (file, name) => {
-        const top = file.narrative && file.narrative.topAssessments;
-        if(!top || top.length < 2) return null;
-        // topAssessments names come straight off the PDF's score cards ("Level
-        // 7"); the grouping name here has already been through
-        // describeAssessmentName ("Level 7 (core skills through 7th grade)"),
-        // which always APPENDS a parenthetical rather than changing the base
-        // name - strip it back off before comparing, or this never matches
-        // and silently falls back to the wrong combined score.
-        const stripParen = s => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
-        const target = stripParen(name);
-        const match = top.find(t=>stripParen(t.name) === target);
-        return match ? fracLabelToPct(match.num, match.den) : null;
-      };
+      const ownScoreFor = ownScoreForFile;
       // When a file carries multiple score cards, foldNarrativeSingle's
       // mastered-topics list is otherwise unfiltered across every card on
       // the page - so a mastered Level 6 Extension geometry skill would show
       // up as if it were a mastered Level 7 skill. Re-bucket by the same
       // category-size match as the Additional Assessment card above, and
       // keep only what's actually this identity's own.
-      const ownFoldedCategories = (file, folded) => {
-        const top = file.narrative && file.narrative.topAssessments;
-        if(!top || top.length < 2) return folded.categories;
-        const buckets = bucketCategoriesByAssessment(file);
-        const mainRaw = (top.find(t=>MAIN_ELIGIBLE_RE.test(t.name)) || {}).name;
-        const ownedCats = buckets[mainRaw] || [];
-        const masteredTopics = ownedCats.flatMap(cat=>cat.mastered);
-        if(masteredTopics.length){
-          return [{name:'Mastered Concepts', topics: masteredTopics.map(nm=>({name:nm, prev:null, curr:'Mastered'}))}];
-        }
-        return [{name:'Skill Areas', topics: ownedCats.map(c=>({name:c.name, prev:null, curr:fracLabelToPct(c.num, c.den)}))}];
-      };
+      const ownFoldedCategories = ownFoldedCategoriesForFile;
       byName.forEach((files, name)=>{
         files.sort(byDate);
         const use = files.length <= 2 ? files : [files[0], files[files.length-1]];
@@ -2424,6 +2451,19 @@ document.getElementById('parseBtn').addEventListener('click', async ()=>{
           merged = foldNarrativeSingle(only.narrative);
           merged.singleChartMode = !merged.isBakedComparison;
           merged.assessmentsGiven = only.assessmentNames;
+          // A file with several score cards (say Level 4 + its Extension +
+          // Numerical Fluency) reports one COMBINED total at the bottom. Use the
+          // main card's own score instead, and only its own categories. Skipped
+          // when the file has a baked-in Initial -> Recent comparison, since
+          // that comparison only exists as combined totals and the two sides
+          // have to stay like-for-like.
+          if(!merged.isBakedComparison){
+            const own = ownScoreForFile(only, mainNameOf(only));
+            if(own){
+              merged.currScore = own;
+              merged.categories = ownFoldedCategoriesForFile(only, merged);
+            }
+          }
         } else {
           const chart = parseChart(await extractRowsFromPDF(only.file));
           if(chart.mode==='comparison'){
@@ -3863,7 +3903,7 @@ async function buildExitEmail(){
   }
 
   body += `If you have any additional thoughts or questions, please don't hesitate to reach out. We will miss ${pr.obj}!\n\n`;
-  body += `Best,\n${staff}\n${center.name}`;
+  body += `Best,\n${staff}`;
 
   return body;
 }
@@ -3927,7 +3967,7 @@ async function buildExitSiblingEmail(){
   }
 
   body += `If you have any additional thoughts or questions, please don't hesitate to reach out. We will miss ${kids.length>1?'them':kids[0].pr.obj}!\n\n`;
-  body += `Best,\n${staff}\n${center.name}`;
+  body += `Best,\n${staff}`;
 
   exitChartDataUrls = chartMap;
   return body;
@@ -3943,14 +3983,14 @@ function buildExitEmailHeader(){
   return `${name} - Total Progress Recap`;
 }
 
-/* Center-based defaults for the RFA toggles: MEV schedules through myMathnasium
-   and sends a Learning Plan; West Linn mentions the day-at-Mathnasium
-   overview instead. Homework policy isn't center-dependent, so it's left
-   alone here. Applied on page load and whenever the center changes. */
+/* Center-based defaults for the RFA toggles: MEV schedules through myMathnasium;
+   West Linn mentions the day-at-Mathnasium overview instead. Both centers send
+   the Learning Plan as standard. Homework policy isn't center-dependent, so
+   it's left alone here. Applied on page load and whenever the center changes. */
 function applyCenterDefaults(){
   const isMev = document.querySelector('input[name="emailCenter"]:checked').value === 'MEV';
   document.getElementById('rfaScheduling').checked = isMev;
-  document.getElementById('rfaLearningPlan').checked = isMev;
+  document.getElementById('rfaLearningPlan').checked = true;
   document.getElementById('rfaDayInLife').checked = !isMev;
 }
 document.querySelectorAll('input[name="emailCenter"]').forEach(radio=>{
@@ -4093,6 +4133,35 @@ function bucketCategoriesByAssessment(file){
   return buckets;
 }
 
+/* A single narrative file can carry several assessments at once (one main,
+   plus add-ons like an Extension riding along). Its footer "Skills Mastered"
+   total is the COMBINED score across every card, so these pull out just one
+   card's own score, and just the categories that belong to the main card.
+   topAssessments names come straight off the PDF's score cards ("Level 7");
+   the grouping name has been through describeAssessmentName ("Level 7 (core
+   skills through 7th grade)"), which only APPENDS a parenthetical, so it's
+   stripped back off before comparing. */
+function ownScoreForFile(file, name){
+  const top = file.narrative && file.narrative.topAssessments;
+  if(!top || top.length < 2) return null;
+  const stripParen = s => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+  const target = stripParen(name);
+  const match = top.find(t=>stripParen(t.name) === target);
+  return match ? fracLabelToPct(match.num, match.den) : null;
+}
+function ownFoldedCategoriesForFile(file, folded){
+  const top = file.narrative && file.narrative.topAssessments;
+  if(!top || top.length < 2) return folded.categories;
+  const buckets = bucketCategoriesByAssessment(file);
+  const mainRaw = (top.find(t=>MAIN_ELIGIBLE_RE.test(t.name)) || {}).name;
+  const ownedCats = buckets[mainRaw] || [];
+  const masteredTopics = ownedCats.flatMap(cat=>cat.mastered);
+  if(masteredTopics.length){
+    return [{name:'Mastered Concepts', topics: masteredTopics.map(nm=>({name:nm, prev:null, curr:'Mastered'}))}];
+  }
+  return [{name:'Skill Areas', topics: ownedCats.map(c=>({name:c.name, prev:null, curr:fracLabelToPct(c.num, c.den)}))}];
+}
+
 const CENTER_INFO = {
   WL: {
     name: 'Mathnasium of West Linn',
@@ -4100,9 +4169,9 @@ const CENTER_INFO = {
     phone: '(503) 305-8738',
     address: '21900 Willamette Dr, West Linn, Oregon 97068',
     email: 'westlinn@mathnasium.com',
-    scoreVoice: 'clinical', // "indicates gaps but solid fundamentals" style
-    progressTrigger: 'assessment', // WL's cadence: reassess every N concepts, independent of LP completion
-    includeIntroLine: true // "This is {staff} with Mathnasium." opener on Progress Update emails
+    scoreVoice: 'warm',
+    progressTrigger: 'learningPlan', // student finishes the current Learning Plan, then gets reassessed (same as MEV since Nov 2026)
+    includeIntroLine: false // the "This is {staff} with Mathnasium." opener was retired for every center
   },
   MEV: {
     name: 'Mathnasium of East Vancouver',
@@ -4110,9 +4179,9 @@ const CENTER_INFO = {
     phone: '(360) 449-2878',
     address: '16020 SE Mill Plain Blvd #117, Vancouver, Washington 98684',
     email: 'eastvancouver@mathnasium.com',
-    scoreVoice: 'warm', // "phenomenal!" style
-    progressTrigger: 'learningPlan', // MEV's cadence: student finishes the current Learning Plan, then gets reassessed
-    includeIntroLine: false // MEV templates skip the "This is {staff} with Mathnasium." opener
+    scoreVoice: 'warm',
+    progressTrigger: 'learningPlan', // student finishes the current Learning Plan, then gets reassessed
+    includeIntroLine: false // the "This is {staff} with Mathnasium." opener was retired for every center
   }
 };
 // standard is 40-70% on an initial assessment, regardless of center
@@ -4129,49 +4198,93 @@ function pronounSet(p){
    (reading the currently active globals) and the sibling email (reading
    each saved student snapshot in turn, since only one tab's data lives in
    the DOM at a time). */
+/* Order assessments are walked through in the RFA email: Numerical Fluency
+   addition/subtraction, then Numerical Fluency multiplication/division, then
+   the grade-level checkup, then anything else (Computation and so on), then
+   Extensions last. Ties keep the order they came in. */
+function assessmentOrderRank(name){
+  const n = name || '';
+  if(/Numerical Fluency/i.test(n) && /Addition|Subtraction/i.test(n)) return 0;
+  if(/Numerical Fluency/i.test(n) && /Multiplication|Division/i.test(n)) return 1;
+  if(/Extension/i.test(n)) return 4;
+  if(MAIN_ELIGIBLE_RE.test(n)) return 2;
+  return 3;
+}
+function sortByAssessmentOrder(list){
+  return list.map((x,i)=>({x,i}))
+    .sort((a,b)=> assessmentOrderRank(a.x.name)-assessmentOrderRank(b.x.name) || a.i-b.i)
+    .map(o=>o.x);
+}
+
 function buildChildSection(childDataset, childExtraCharts, assessmentsGivenStr, name, pr, center){
   let text = '';
 
+  const assessmentsGiven = (assessmentsGivenStr||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const mainLabel = assessmentsGiven.find(n => /^(Level \d|Checkup|Great Foundations|Algebra Readiness(?! Extension)|Algebra 1|Algebra 2|Geometry Readiness|Geometry(?! Readiness)|Geometry w(?:ith)? Proofs|HMM Fundamental|HMM Trigonometry|HMM Linear|HMM Quadratic|HMM Advanced|Trigonometry|Precalculus|Integrated Math 1|Integrated Math 2|SAT Basic|SAT Advanced)/i.test(n)) || assessmentsGiven[0] || '';
+
+  // Every assessment that has its own score, whether it came off one combined
+  // report's score cards or from separate add-on uploads. topAssessments needs
+  // >= 2 entries to count as a breakdown: the stacked "Assessment Skills"
+  // list can return just one entry for an ordinary single-assessment file,
+  // and that should read with the normal single-assessment wording below.
   const topAssessments = childDataset.topAssessments;
-  // >= 2 specifically: topAssessments can now come from either a combined
-  // report's side-by-side score boxes or its stacked "Assessment Skills"
-  // list, and the latter can return just one entry for an ordinary single-
-  // assessment file. A length-1 result isn't a "breakdown of assessments" -
-  // it should read with the normal single-assessment wording below, same as
-  // when topAssessments is null entirely.
+  const usableExtras = (childExtraCharts||[]).filter(c=>c.label.trim() && c.score.trim());
+  let cards = [];
   if(topAssessments && topAssessments.length >= 2){
-    const names = topAssessments.map(a=>forParentFacing(a.name));
-    text += `I ended up giving ${name} our ${listJoin(names)} assessment${topAssessments.length>1?'s':''}.\n\n`;
-    topAssessments.forEach(a=>{
-      const pct = fracLabelToPct(a.num, a.den);
-      const blurb = findBlurb(a.name);
-      let line = `On the ${forParentFacing(a.name)} assessment, ${name} scored ${pct} overall`;
+    cards = topAssessments.map(a=>({name:a.name, pct:fracLabelToPct(a.num, a.den)}));
+    const covered = new Set(cards.map(c=>forParentFacing(c.name).toLowerCase()));
+    usableExtras.forEach(c=>{
+      if(!covered.has(forParentFacing(c.label.trim()).toLowerCase())) cards.push({name:c.label.trim(), pct:fracLabelToPct(c.score.trim())});
+    });
+  } else if(usableExtras.length && mainLabel){
+    cards = [{name:mainLabel, pct:fracLabelToPct(childDataset.currScore || '')},
+             ...usableExtras.map(c=>({name:c.label.trim(), pct:fracLabelToPct(c.score.trim())}))];
+  }
+
+  if(cards.length >= 2){
+    cards = sortByAssessmentOrder(cards);
+    const names = cards.map(c=>forParentFacing(c.name));
+    text += `I ended up giving ${name} our ${listJoin(names)} assessments.\n\n`;
+    cards.forEach(c=>{
+      const blurb = findBlurb(c.name);
+      const exp = blurb ? '' : parentFacingExplanation(forParentFacing(c.name));
+      let line = `On the ${forParentFacing(c.name)} assessment${exp ? `, ${exp},` : ','} ${name} scored ${c.pct || '[score]'} overall`;
       line += blurb ? `. ${blurb}` : '.';
       text += `${line}\n\n`;
     });
-    text += `We aim for students to score somewhere around ${STANDARD_SCORE_RANGE} on an initial assessment, enough to show real prior knowledge while still leaving clear room to grow.\n\n`;
+    text += `We aim for students to score somewhere around ${STANDARD_SCORE_RANGE} on an initial assessment, enough to show real prior knowledge while still leaving clear room to grow. Together these give us a great starting point to build from!\n\n`;
   } else {
-    const assessmentsGiven = (assessmentsGivenStr||'').split(',').map(s=>s.trim()).filter(Boolean);
-    const mainLabel = assessmentsGiven.find(n => /^(Level \d|Checkup|Great Foundations|Algebra Readiness(?! Extension)|Algebra 1|Algebra 2|Geometry Readiness|Geometry(?! Readiness)|Geometry w(?:ith)? Proofs|HMM Fundamental|HMM Trigonometry|HMM Linear|HMM Quadratic|HMM Advanced|Trigonometry|Precalculus|Integrated Math 1|Integrated Math 2|SAT Basic|SAT Advanced)/i.test(n)) || assessmentsGiven[0] || '';
     const mainLabelClean = forParentFacing(mainLabel);
     const mainBlurb = mainLabel ? findBlurb(mainLabel) : '';
     const score = fracLabelToPct(childDataset.currScore || '');
     text += `I ended up giving ${name} ${mainLabelClean ? 'our ' + mainLabelClean + ' Assessment' : 'an initial assessment'}`;
-    if(mainBlurb) text += `. ${mainBlurb}`;
+    const mainExp = parentFacingExplanation(mainLabelClean);
+    text += mainBlurb ? `. ${mainBlurb}` : (mainExp ? `, ${mainExp}.` : '.');
     text += `\n\nWe aim for students to score somewhere around ${STANDARD_SCORE_RANGE} on an initial assessment, enough to show real prior knowledge while still leaving clear room to grow. ${name} scored ${score || '[score]'} overall`;
-    text += center.scoreVoice === 'warm' ? `, which is a great starting point!\n\n` : `, indicating some gaps to close but a solid enough foundation to start building on right away.\n\n`;
+    // Same warm voice for every score, but the wording stays true to where
+    // the score actually landed relative to the usual 40-70% initial range.
+    const scoreNum = toComparableNum(childDataset.currScore || '');
+    if(scoreNum !== null && scoreNum < 40){
+      text += `, which tells us exactly where to begin and gives us a clear path to build from!\n\n`;
+    } else if(scoreNum !== null && scoreNum > 70){
+      text += `, which is a really strong start and shows ${pr.subj} ${pr.be} ready for some exciting challenges ahead!\n\n`;
+    } else {
+      text += `, which is a great starting point!\n\n`;
+    }
   }
 
-  // Extra assessments are framed as "also" - so the main assessment above
-  // has to be mentioned first, or "also" has nothing to refer back to.
-  childExtraCharts.forEach(c=>{
-    if(!c.label.trim() || !c.score.trim()) return;
-    const blurb = findBlurb(c.label);
-    let line = `We also had ${name} work through the ${forParentFacing(c.label.trim())} assessment`;
-    line += blurb ? `. ${blurb}` : '.';
-    line += ` ${pr.subj[0].toUpperCase()+pr.subj.slice(1)} scored ${fracLabelToPct(c.score.trim())} overall.`;
-    text += `${line}\n\n`;
-  });
+  // Only reached when there was no main assessment to pair the extras with
+  // (the combined walkthrough above already covers them otherwise).
+  if(cards.length < 2){
+    usableExtras.forEach(c=>{
+      const blurb = findBlurb(c.label);
+      const extraExp = blurb ? '' : parentFacingExplanation(forParentFacing(c.label.trim()));
+      let line = `We also had ${name} work through the ${forParentFacing(c.label.trim())} assessment`;
+      line += blurb ? `. ${blurb}` : (extraExp ? `, ${extraExp}.` : '.');
+      line += ` ${pr.subj[0].toUpperCase()+pr.subj.slice(1)} scored ${fracLabelToPct(c.score.trim())} overall.`;
+      text += `${line}\n\n`;
+    });
+  }
 
   const mastery = [];
   childDataset.categories.forEach(cat=>{
@@ -4211,14 +4324,14 @@ function generateRfaEmail(){
 
   if(learningPlan){
     if(planTopics.length){
-      body += `Some of ${pr.poss} key areas to work on include:\n\n`;
+      body += `Here are some of the skills we'll focus on first with ${pr.obj}:\n\n`;
       planTopics.forEach(t=> body += `• ${t}\n`);
       body += `\nThe attached Learning Plan details everything we'd work on with ${pr.obj}. Those skills get tackled a few at a time, with enough variety to keep things engaging while making sure they stick.\n\n`;
     } else {
       body += `The attached Learning Plan details everything we'd work on with ${pr.obj} moving forward.\n\n`;
     }
   } else if(planTopics.length){
-    body += `Some of ${pr.poss} key areas to work on include:\n\n`;
+    body += `Here are some of the skills we'll focus on first with ${pr.obj}:\n\n`;
     planTopics.forEach(t=> body += `• ${t}\n`);
     body += `\n`;
   }
@@ -4249,7 +4362,7 @@ function generateRfaEmail(){
   }
 
   body += `If you have any questions, please let us know! We're looking forward to working with ${student}.\n\n`;
-  body += `Best,\n${staff}\n${center.name}\n${center.phone}`;
+  body += `Best,\n${staff}`;
 
   return body;
 }
@@ -4291,7 +4404,7 @@ function generateSiblingRfaEmail(){
     body += `${k.name}\n\n`;
     body += buildChildSection(k.dataset, k.extraCharts, k.assessmentsGiven, k.name, k.pr, center);
     if(k.planTopics.length){
-      body += `Some of ${k.pr.poss} key areas to work on include:\n\n`;
+      body += `Here are some of the skills we'll focus on first with ${k.pr.obj}:\n\n`;
       k.planTopics.forEach(t=> body += `• ${t}\n`);
       body += `\n`;
     }
@@ -4326,7 +4439,7 @@ function generateSiblingRfaEmail(){
   }
 
   body += `If you have any questions, please let us know! We're looking forward to working with ${listJoin(names)}.\n\n`;
-  body += `Best,\n${staff}\n${center.name}\n${center.phone}`;
+  body += `Best,\n${staff}`;
 
   return body;
 }
@@ -4337,10 +4450,8 @@ function generateSiblingRfaEmail(){
    but reads from a saved student snapshot (dataset/extraCharts/meta) instead
    of the live DOM/checkboxes, since only one sibling tab is "live" at a time.
 
-   Wording leans on center.scoreVoice (the same "warm" vs "clinical" toggle
-   the single-student/RFA flow already uses) so West Linn and East Vancouver
-   drafts read like the two centers' own real emails instead of one generic
-   voice pasted onto both. */
+   One warm, positive voice for every center (the old warm/clinical split
+   was retired in Nov 2026). */
 function buildProgressChildSection(childDataset, childExtraCharts, childMeta, name, pr, center){
   const preMode = !!childDataset.singleChartMode;
   const prevPlan = (childMeta.prevPlan||'').trim();
@@ -4348,7 +4459,6 @@ function buildProgressChildSection(childDataset, childExtraCharts, childMeta, na
   const prevScoreRaw = childDataset.prevScore || '';
   const currScore = fracLabelToPct(currScoreRaw);
   const prevScore = fracLabelToPct(prevScoreRaw);
-  const warm = center.scoreVoice === 'warm';
 
   const pv = toComparableNum(prevScoreRaw), cv = toComparableNum(currScoreRaw);
 
@@ -4360,20 +4470,16 @@ function buildProgressChildSection(childDataset, childExtraCharts, childMeta, na
   if(!preMode && pv!==null && cv!==null){
     const d = Math.round((cv-pv)*10)/10;
     if(d>0){
-      text += warm
-        ? `I'm happy to report ${pr.subj} improved ${pr.poss} score by ${d}%-points, scoring ${currScore} overall! `
-        : `On ${pr.poss} most recent attempt, ${pr.subj} improved ${pr.poss} score by ${d}%-points, scoring ${currScore} overall. `;
+      text += `I'm happy to report ${pr.subj} improved ${pr.poss} score by ${d}%-points, scoring ${currScore} overall! `;
     } else if(d<0){
-      text += warm
-        ? `${name} put in a great effort and scored ${currScore} overall this time, up against a tougher ${prevScore ? 'follow-up' : 'next'} assessment. `
-        : `On ${pr.poss} most recent attempt, ${pr.subj} scored ${currScore} overall. `;
+      text += `${name} put in a great effort and scored ${currScore} overall on ${pr.poss} most recent attempt. `;
     } else {
       text += `On ${pr.poss} most recent attempt, ${pr.subj} held steady, scoring ${currScore} overall. `;
     }
   } else if(cv!==null){
     text += preMode
-      ? `${name} scored ${currScore} overall on ${pr.poss} initial assessment. `
-      : (warm ? `${name} scored ${currScore} overall on ${pr.poss} most recent progress check! ` : `${name} scored ${currScore} overall on ${pr.poss} most recent progress check. `);
+      ? `${name} scored ${currScore} overall on ${pr.poss} initial assessment, which gives us a great starting point to build from! `
+      : `${name} scored ${currScore} overall on ${pr.poss} most recent progress check! `;
   }
   text += `A skill-by-skill breakdown is attached to this email.\n\n`;
 
@@ -4424,7 +4530,7 @@ function buildProgressChildSection(childDataset, childExtraCharts, childMeta, na
 
   const planTopics = (childMeta.planTopics||'').split('\n').map(s=>s.trim()).filter(Boolean);
   if(planTopics.length){
-    text += `Based on these results, we've built an updated Learning Plan. ${pr.subj[0].toUpperCase()+pr.subj.slice(1)} will begin ${pr.poss} Learning Plan by focusing on the following skills:\n\n`;
+    text += `Based on these results, we've built an updated Learning Plan. Here are some of the skills we'll focus on first with ${pr.obj}:\n\n`;
     planTopics.forEach(t=> text += `\u2022 ${t}\n`);
     text += `\n`;
   }
@@ -4434,8 +4540,7 @@ function buildProgressChildSection(childDataset, childExtraCharts, childMeta, na
 
 /* Combined Progress Update covering every sibling tab. One merged format
    (drawing on real WL and MEV staff emails) used regardless of center: same
-   greeting/closing skeleton, with buildProgressChildSection's warm/clinical
-   tone doing the center-specific voice work per child. */
+   greeting/closing skeleton and the same warm voice for every child. */
 function generateSiblingProgressEmail(){
   snapshotActiveStudent(); // make sure the currently-open tab's edits are included
 
@@ -4463,10 +4568,13 @@ function generateSiblingProgressEmail(){
     body += buildProgressChildSection(k.dataset, k.extraCharts, k.meta, k.name, k.pr, center);
   });
 
+  const everyKidHasPlan = kids.every(k=>(k.meta.planTopics||'').trim());
   body += center.progressTrigger === 'learningPlan'
-    ? `The Assessment Reports and Learning Plans have been uploaded to myMathnasium for your convenience, but I have attached them here as well. We've built each of their next Learning Plans based on these results, so we'll follow up with another update once those are complete. If you have any questions at all, please don't hesitate to reach out. Thank you!\n\n`
+    ? `The Assessment Reports and Learning Plans have been uploaded to myMathnasium for your convenience, but I have attached them here as well. ${everyKidHasPlan
+        ? `We'll follow up with another update once each of them has completed their Learning Plan.`
+        : `We've built each of their next Learning Plans based on these results, so we'll follow up with another update once those are complete.`} If you have any questions at all, please don't hesitate to reach out. Thank you!\n\n`
     : `The Assessment Reports and Learning Plans have been uploaded to myMathnasium for your convenience, but I have attached them here as well. A reassessment is built into each of their next Learning Plans, so we'll follow up with another update once those are complete. If you have any questions at all, please don't hesitate to reach out. Thank you!\n\n`;
-  body += `Best,\n${staff}\n${center.name}`;
+  body += `Best,\n${staff}`;
 
   return body;
 }
@@ -4625,13 +4733,13 @@ document.getElementById('genBtn').addEventListener('click', async ()=>{
     scoreLine += `This is new, harder material, so ${pr.subj} scored ${currScore} overall on this first attempt, which is a completely normal starting point.`;
   } else if(!preMode && pv!==null && cv!==null){
     const d = Math.round((cv-pv)*10)/10;
-    if(d>0) scoreLine = `On ${pr.poss} most recent attempt, ${pr.subj} improved ${pr.poss} score by ${d}%-points, scoring ${currScore} overall.`;
-    else if(d<0) scoreLine = `On ${pr.poss} most recent attempt, ${pr.subj} scored ${currScore} overall.`;
+    if(d>0) scoreLine = `I'm happy to report ${pr.subj} improved ${pr.poss} score by ${d}%-points, scoring ${currScore} overall!`;
+    else if(d<0) scoreLine = `${student} put in a great effort and scored ${currScore} overall on ${pr.poss} most recent attempt.`;
     else scoreLine = `On ${pr.poss} most recent attempt, ${pr.subj} held steady, scoring ${currScore} overall.`;
   } else if(cv!==null){
     scoreLine = preMode
-      ? `${student} scored ${currScore} overall on ${pr.poss} initial assessment.`
-      : `${student} scored ${currScore} overall on this assessment.`;
+      ? `${student} scored ${currScore} overall on ${pr.poss} initial assessment, which gives us a great starting point to build from!`
+      : `${student} scored ${currScore} overall on this assessment!`;
   }
   // A score this high means the assessment is basically outgrown - flag that
   // the next one is coming, rather than only reporting the score itself.
@@ -4683,7 +4791,7 @@ document.getElementById('genBtn').addEventListener('click', async ()=>{
   const assessmentPhrase = assessmentsGiven.length
     ? (assessmentsGiven.length===1
         ? (()=>{ const clean = forParentFacing(assessmentsGiven[0]); const exp = parentFacingExplanation(clean);
-                 return `a ${clean} assessment${exp ? `, ${exp}` : ''}`; })()
+                 const art = /^(?:[aeiou]|HMM|HS|SAT)/i.test(clean) ? 'an' : 'a'; return `${art} ${clean} assessment${exp ? `, ${exp}` : ''}`; })()
         : `the ${listJoin(assessmentsGiven.map(forParentFacing))} assessments`)
     : 'an assessment';
 
@@ -4748,7 +4856,9 @@ document.getElementById('genBtn').addEventListener('click', async ()=>{
       // just be confusing before the context lands.
       body += `${introPrefix}I wanted to share an update on ${pr.poss} progress! `;
     } else {
-      body += center.progressTrigger === 'learningPlan'
+      // A pre-assessment (no previous score) isn't a reassessment after a
+      // Learning Plan, so it always uses the plain "completed an assessment" opener.
+      body += (center.progressTrigger === 'learningPlan' && !preMode)
         ? `${introPrefix}${student} recently completed ${pr.poss} Learning Plan, so it was time for a reassessment, and I wanted to share an update on ${pr.poss} progress! `
         : `${introPrefix}${student} recently completed ${assessmentPhrase}, and I wanted to share an update on ${pr.poss} progress! `;
     }
@@ -4770,14 +4880,18 @@ document.getElementById('genBtn').addEventListener('click', async ()=>{
     body += extraNotes.join('\n\n') + '\n\n';
   }
   if(planTopics.length){
-    body += `Based on these results, we've built an updated Learning Plan. ${pr.subj[0].toUpperCase()+pr.subj.slice(1)} will begin ${pr.poss} Learning Plan by focusing on the following skills:\n\n`;
+    body += `Based on these results, we've built an updated Learning Plan. Here are some of the skills we'll focus on first with ${pr.obj}:\n\n`;
     planTopics.forEach(t=> body += `• ${t}\n`);
     body += `\n`;
   }
+  // When the skills list above already said "we've built an updated Learning
+  // Plan", the closing doesn't repeat that - it just says when to expect the next update.
   body += center.progressTrigger === 'learningPlan'
-    ? `We've built ${pr.poss} next Learning Plan based on these results, so we'll follow up with another update once ${pr.subj} ${pr.has} completed it. In the meantime, please don't hesitate to reach out with any questions. Thank you!\n\n`
+    ? `${planTopics.length
+        ? `We'll follow up with another update once ${pr.subj} ${pr.has} completed ${pr.poss} Learning Plan.`
+        : `We've built ${pr.poss} next Learning Plan based on these results, so we'll follow up with another update once ${pr.subj} ${pr.has} completed it.`} In the meantime, please don't hesitate to reach out with any questions. Thank you!\n\n`
     : `A reassessment is built into the next Learning Plan, so we'll follow up with another update once that's complete. In the meantime, please don't hesitate to reach out with any questions. Thank you!\n\n`;
-  body += `Best,\n${staff}\n${center.name}`;
+  body += `Best,\n${staff}`;
 
   setEmailOutput(body);
 });
