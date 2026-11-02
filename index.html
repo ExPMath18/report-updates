@@ -493,6 +493,21 @@
   #bugModal .chk small{display:block;color:var(--ink-soft);}
   #bugMsg{font-size:13px;margin-top:12px;}
   #bugMsg.err{color:var(--down);font-weight:700;}
+
+  /* Settings */
+  #setModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;align-items:center;justify-content:center;padding:16px;}
+  #setModal.open{display:flex;}
+  #setModal .box{background:#fff;border-radius:10px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:22px;color:var(--ink);}
+  #setModal h2{margin:0 0 4px 0;font-size:20px;}
+  #setModal p.sub{margin:0 0 14px 0;font-size:13px;color:var(--ink-soft);}
+  #setModal h3{font-size:14px;margin:18px 0 6px 0;}
+  #setModal label.lbl{display:block;font-size:12.5px;font-weight:700;margin:10px 0 4px 0;}
+  #setModal input[type=text]{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:9px;font:inherit;font-size:14px;}
+  #setModal .centerCard{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;}
+  #setModal .chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:8px;}
+  #setModal .row2{display:grid;grid-template-columns:1fr 2fr;gap:10px;}
+  #setMsg{font-size:13px;margin-top:10px;}
+  #setMsg.err{color:var(--down);font-weight:700;}
 </style>
 </head>
 <body>
@@ -502,7 +517,7 @@
     <div class="wordmark">MATHNASIUM<span class="sub">Exponential Potential · Staff Tool</span></div>
     <h1>Email Builder</h1>
     <p>Upload Radius assessment-chart PDFs, review the results, and draft a parent email.</p>
-    <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
+    <button type="button" class="report-link" id="setOpen">Settings</button> <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
   </div>
 </header>
 
@@ -561,16 +576,7 @@
         <span>Exit Summary <span style="font-weight:400;">(leaving student)</span></span>
       </label>
     </div>
-    <div class="mode-toggle top-controls-center" id="emailCenterToggle">
-      <label id="centerLabelMEV">
-        <input type="radio" name="emailCenter" value="MEV">
-        <span>East Vancouver</span>
-      </label>
-      <label class="active" id="centerLabelWL">
-        <input type="radio" name="emailCenter" value="WL" checked>
-        <span>West Linn</span>
-      </label>
-    </div>
+    <div class="mode-toggle top-controls-center" id="emailCenterToggle"></div>
     <label class="toggle-row top-controls-sibling">
       <input type="checkbox" id="siblingModeToggle">
       <span>Sibling mode<span class="toggle-note">Run each sibling through Steps 1-4 on their own tab, then generate one combined email.</span></span>
@@ -763,9 +769,6 @@
         <label class="toggle-row"><input type="checkbox" id="rfaLearningPlan" checked>
           <span>We send a Learning Plan document<span class="toggle-note">Mentions the attached Learning Plan document in the email.</span></span>
         </label>
-        <label class="toggle-row"><input type="checkbox" id="rfaDayInLife">
-          <span>Mention the "day at Mathnasium" program overview<span class="toggle-note">Adds a one-line mention about an attached program overview.</span></span>
-        </label>
         <label class="toggle-row"><input type="checkbox" id="rfaHomework">
           <span>Include homework policy explanation</span>
         </label>
@@ -845,6 +848,29 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
 </div>
 
 
+<div id="setModal" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="box">
+    <h2 id="setTitle">Settings</h2>
+    <p class="sub">Set up your centers once. Everything saves on this device.</p>
+    <label class="lbl" for="setStaff">Default sender name</label>
+    <input type="text" id="setStaff" placeholder="e.g. Rebecca">
+    <h3>Centers</h3>
+    <div id="setCenters"></div>
+    <button type="button" class="btn-secondary btn-sm" id="setAdd">+ Add a center</button>
+    <div id="setMsg"></div>
+    <div class="btn-row">
+      <button type="button" class="btn-primary" id="setSave">Save</button>
+      <button type="button" class="btn-ghost" id="setCancel">Cancel</button>
+    </div>
+    <h3>Move or back up</h3>
+    <div class="btn-row" style="margin-top:6px;">
+      <button type="button" class="btn-ghost btn-sm" id="setExport">Export settings</button>
+      <button type="button" class="btn-ghost btn-sm" id="setImportBtn">Import settings</button>
+      <button type="button" class="btn-ghost btn-sm" id="setReset">Reset to defaults</button>
+      <input type="file" id="setImport" accept=".json,application/json" style="display:none;">
+    </div>
+  </div>
+</div>
 <div id="bugModal" role="dialog" aria-modal="true" aria-labelledby="bugTitle">
   <div class="box">
     <h2 id="bugTitle">Report a problem</h2>
@@ -2849,7 +2875,7 @@ let extraCounter = 0;
 
 function addExtraCard(){
   extraCounter++;
-  extraCharts.push({id:extraCounter, label: extraCharts.length===0 ? 'Numerical Fluency Assessment' : 'Additional Assessment', prevScore:'', score:'', topics:[], _narrativeCurr:null, currFileName:'', prevFileName:'', _uploadExpanded:false});
+  extraCharts.push({id:extraCounter, label: 'Additional Assessment', prevScore:'', score:'', topics:[], _narrativeCurr:null, currFileName:'', prevFileName:'', _uploadExpanded:false});
 }
 
 document.getElementById('addExtraBtn').addEventListener('click', ()=>{
@@ -2857,9 +2883,8 @@ document.getElementById('addExtraBtn').addEventListener('click', ()=>{
   renderExtra();
 });
 
-// Additional assessments are available immediately on page load, no need to
-// wait on parsing the main chart first.
-addExtraCard();
+// Start with no additional assessment cards. Parsing adds them as needed,
+// and "+ Add another assessment" adds one by hand.
 renderExtra();
 
 /* Converts either a percent string ("56%") or a fraction string ("20/39")
@@ -2911,7 +2936,7 @@ function renderExtra(){
     'Numerical Fluency Addition and Subtraction',
     'Numerical Fluency Multiplication and Division',
     'Geometry Extension Assessment',
-    'Computation Assessment (5th-8th)',
+    'Computation Assessment (5th-7th)',
     'High School Fundamental Skills (9th-12th)'
   ];
   extraCharts.forEach(card=>{
@@ -4019,25 +4044,174 @@ function buildExitEmailHeader(){
   return `${name} - Total Progress Recap`;
 }
 
-/* Center-based defaults for the RFA toggles: MEV schedules through myMathnasium;
-   West Linn mentions the day-at-Mathnasium overview instead. Both centers send
-   the Learning Plan as standard. Homework policy isn't center-dependent, so
-   it's left alone here. Applied on page load and whenever the center changes. */
-function applyCenterDefaults(){
-  const isMev = document.querySelector('input[name="emailCenter"]:checked').value === 'MEV';
-  document.getElementById('rfaScheduling').checked = isMev;
-  document.getElementById('rfaLearningPlan').checked = true;
-  document.getElementById('rfaDayInLife').checked = !isMev;
+/* Center-based defaults for the RFA toggles come from Settings. Applied on
+   page load and whenever the center changes. */
+/* ===== Settings: center profiles saved on this device ===== */
+const SETTINGS_KEY = 'emailBuilderSettings.v1';
+const DEFAULT_SETTINGS = {
+  staffName: '',
+  centers: [
+    {id:'MEV', label:'East Vancouver', name:'Mathnasium of East Vancouver', scheduling:true,  learningPlan:true, homework:false},
+    {id:'WL',  label:'West Linn',      name:'Mathnasium of West Linn',      scheduling:false, learningPlan:true, homework:false}
+  ],
+  lastCenter: 'WL'
+};
+let settings = loadSettings();
+function cloneSettings(x){ return JSON.parse(JSON.stringify(x)); }
+function cleanSettings(x){
+  const out = {staffName:'', centers:[], lastCenter:''};
+  if(x && typeof x==='object'){
+    out.staffName = String(x.staffName||'').slice(0,60);
+    (Array.isArray(x.centers)?x.centers:[]).slice(0,12).forEach((c,i)=>{
+      if(!c || typeof c!=='object') return;
+      const label = String(c.label||'').trim().slice(0,40);
+      const name = String(c.name||'').trim().slice(0,80);
+      if(!label && !name) return;
+      out.centers.push({
+        id: String(c.id||('C'+(i+1))).replace(/[^A-Za-z0-9_-]/g,'').slice(0,20) || ('C'+(i+1)),
+        label: label || name, name: name || label,
+        scheduling: !!c.scheduling, learningPlan: !!c.learningPlan, homework: !!c.homework
+      });
+    });
+    out.lastCenter = String(x.lastCenter||'');
+  }
+  const seen = {};
+  out.centers.forEach(c=>{ let id=c.id, n=2; while(seen[id]) id=c.id+n++; c.id=id; seen[id]=1; });
+  if(!out.centers.length) return cloneSettings(DEFAULT_SETTINGS);
+  if(!out.centers.some(c=>c.id===out.lastCenter)) out.lastCenter = out.centers[0].id;
+  return out;
 }
-document.querySelectorAll('input[name="emailCenter"]').forEach(radio=>{
-  radio.addEventListener('change', ()=>{
-    const value = document.querySelector('input[name="emailCenter"]:checked').value;
-    document.getElementById('centerLabelMEV').classList.toggle('active', value === 'MEV');
-    document.getElementById('centerLabelWL').classList.toggle('active', value === 'WL');
-    applyCenterDefaults();
+function loadSettings(){
+  try{ const raw = localStorage.getItem(SETTINGS_KEY); if(raw) return cleanSettings(JSON.parse(raw)); }catch(e){}
+  return cloneSettings(DEFAULT_SETTINGS);
+}
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
+
+// CENTER_INFO is what the email generators read. It is rebuilt from settings.
+const CENTER_INFO = {};
+function rebuildCenterInfo(){
+  Object.keys(CENTER_INFO).forEach(k=>delete CENTER_INFO[k]);
+  settings.centers.forEach(c=>{
+    CENTER_INFO[c.id] = {
+      name: c.name,
+      scoreVoice: 'warm',
+      progressTrigger: 'learningPlan', // student finishes the current Learning Plan, then gets reassessed
+      includeIntroLine: false // the "This is {staff} with Mathnasium." opener was retired for every center
+    };
   });
+}
+function selectedCenterId(){
+  const r = document.querySelector('input[name="emailCenter"]:checked');
+  return r ? r.value : settings.centers[0].id;
+}
+function renderCenterToggle(selectId){
+  const host = document.getElementById('emailCenterToggle');
+  const want = settings.centers.some(c=>c.id===selectId) ? selectId : settings.lastCenter;
+  host.innerHTML = '';
+  settings.centers.forEach(c=>{
+    const lab = document.createElement('label');
+    const inp = document.createElement('input');
+    inp.type='radio'; inp.name='emailCenter'; inp.value=c.id; inp.checked = (c.id===want);
+    const sp = document.createElement('span'); sp.textContent = c.label;
+    lab.appendChild(inp); lab.appendChild(sp);
+    lab.classList.toggle('active', c.id===want);
+    host.appendChild(lab);
+  });
+  host.style.display = settings.centers.length>1 ? '' : 'none';
+}
+function applyCenterDefaults(){
+  const c = settings.centers.find(x=>x.id===selectedCenterId()) || settings.centers[0];
+  document.getElementById('rfaScheduling').checked = c.scheduling;
+  document.getElementById('rfaLearningPlan').checked = c.learningPlan;
+  document.getElementById('rfaHomework').checked = c.homework;
+}
+document.getElementById('emailCenterToggle').addEventListener('change', ()=>{
+  const value = selectedCenterId();
+  document.querySelectorAll('#emailCenterToggle label').forEach(l=>{
+    l.classList.toggle('active', l.querySelector('input').checked);
+  });
+  settings.lastCenter = value; saveSettings();
+  applyCenterDefaults();
 });
+function applyStaffDefault(){
+  const f = document.getElementById('staffName');
+  if(f && !f.value && settings.staffName) f.value = settings.staffName;
+}
+rebuildCenterInfo();
+renderCenterToggle(settings.lastCenter);
 applyCenterDefaults();
+applyStaffDefault();
+
+(function(){
+  const $ = id => document.getElementById(id);
+  const modal = $('setModal'), msg = $('setMsg');
+  let draft = null;
+  const setMsg = (t, err) => { msg.textContent = t; msg.className = err ? 'err' : ''; };
+  function readDraftFromDom(){
+    draft.staffName = $('setStaff').value.trim();
+    document.querySelectorAll('#setCenters .centerCard').forEach((card,i)=>{
+      const c = draft.centers[i]; if(!c) return;
+      c.label = card.querySelector('[data-f=label]').value;
+      c.name = card.querySelector('[data-f=name]').value;
+      ['scheduling','learningPlan','homework'].forEach(k=>{ c[k] = card.querySelector('[data-f='+k+']').checked; });
+    });
+  }
+  function renderDraft(){
+    $('setStaff').value = draft.staffName;
+    const host = $('setCenters'); host.innerHTML = '';
+    draft.centers.forEach((c,i)=>{
+      const card = document.createElement('div'); card.className='centerCard';
+      card.innerHTML =
+        '<div class="row2"><div><label class="lbl">Button label</label><input type="text" data-f="label"></div>'+
+        '<div><label class="lbl">Name used in emails</label><input type="text" data-f="name"></div></div>'+
+        '<label class="chk"><input type="checkbox" data-f="scheduling"><span>We handle scheduling through myMathnasium</span></label>'+
+        '<label class="chk"><input type="checkbox" data-f="learningPlan"><span>We send a Learning Plan document</span></label>'+
+        '<label class="chk"><input type="checkbox" data-f="homework"><span>Include homework policy explanation</span></label>'+
+        '<div class="btn-row" style="margin-top:10px;"><button type="button" class="btn-ghost btn-sm" data-rm="'+i+'">Remove this center</button></div>';
+      card.querySelector('[data-f=label]').value = c.label;
+      card.querySelector('[data-f=name]').value = c.name;
+      ['scheduling','learningPlan','homework'].forEach(k=>{ card.querySelector('[data-f='+k+']').checked = c[k]; });
+      const rm = card.querySelector('[data-rm]');
+      if(draft.centers.length<2) rm.style.display='none';
+      rm.addEventListener('click', ()=>{ readDraftFromDom(); draft.centers.splice(i,1); renderDraft(); });
+      host.appendChild(card);
+    });
+  }
+  function open(){
+    draft = cloneSettings(settings); setMsg(''); renderDraft(); modal.classList.add('open');
+  }
+  $('setOpen').addEventListener('click', open);
+  $('setCancel').addEventListener('click', ()=>modal.classList.remove('open'));
+  $('setAdd').addEventListener('click', ()=>{
+    readDraftFromDom();
+    if(draft.centers.length>=12) return;
+    draft.centers.push({id:'C'+Date.now().toString(36), label:'', name:'Mathnasium of ', scheduling:true, learningPlan:true, homework:false});
+    renderDraft();
+  });
+  $('setSave').addEventListener('click', ()=>{
+    readDraftFromDom();
+    if(draft.centers.some(c=>!c.label.trim() || !c.name.trim())){ setMsg('Each center needs a button label and a name.', true); return; }
+    const keep = selectedCenterId();
+    settings = cleanSettings(draft);
+    settings.lastCenter = settings.centers.some(c=>c.id===keep) ? keep : settings.centers[0].id;
+    saveSettings(); rebuildCenterInfo(); renderCenterToggle(settings.lastCenter);
+    applyCenterDefaults(); applyStaffDefault();
+    modal.classList.remove('open');
+  });
+  $('setExport').addEventListener('click', ()=>{
+    readDraftFromDom();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(cleanSettings(draft), null, 2)], {type:'application/json'}));
+    a.download = 'email-builder-settings.json'; document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('setImportBtn').addEventListener('click', ()=>$('setImport').click());
+  $('setImport').addEventListener('change', async e=>{
+    const f = e.target.files[0]; e.target.value=''; if(!f) return;
+    try{ draft = cleanSettings(JSON.parse(await f.text())); renderDraft(); setMsg('Imported. Press Save to keep it.'); }
+    catch(err){ setMsg('That file could not be read.', true); }
+  });
+  $('setReset').addEventListener('click', ()=>{ draft = cloneSettings(DEFAULT_SETTINGS); renderDraft(); setMsg('Back to the defaults. Press Save to keep it.'); });
+})();
 
 /* Apply feature flags: hide any in-progress mode's radio option entirely
    (not just disable it - staff shouldn't see it exists at all) unless
@@ -4198,28 +4372,7 @@ function ownFoldedCategoriesForFile(file, folded){
   return [{name:'Skill Areas', topics: ownedCats.map(c=>({name:c.name, prev:null, curr:fracLabelToPct(c.num, c.den)}))}];
 }
 
-const CENTER_INFO = {
-  WL: {
-    name: 'Mathnasium of West Linn',
-    director: 'Justin Chia',
-    phone: '(503) 305-8738',
-    address: '21900 Willamette Dr, West Linn, Oregon 97068',
-    email: 'westlinn@mathnasium.com',
-    scoreVoice: 'warm',
-    progressTrigger: 'learningPlan', // student finishes the current Learning Plan, then gets reassessed (same as MEV since Nov 2026)
-    includeIntroLine: false // the "This is {staff} with Mathnasium." opener was retired for every center
-  },
-  MEV: {
-    name: 'Mathnasium of East Vancouver',
-    director: 'Holly Ellis',
-    phone: '(360) 449-2878',
-    address: '16020 SE Mill Plain Blvd #117, Vancouver, Washington 98684',
-    email: 'eastvancouver@mathnasium.com',
-    scoreVoice: 'warm',
-    progressTrigger: 'learningPlan', // student finishes the current Learning Plan, then gets reassessed
-    includeIntroLine: false // the "This is {staff} with Mathnasium." opener was retired for every center
-  }
-};
+// CENTER_INFO is built from Settings (see rebuildCenterInfo).
 // standard is 40-70% on an initial assessment, regardless of center
 const STANDARD_SCORE_RANGE = '40-70%';
 
@@ -4242,8 +4395,8 @@ function assessmentOrderRank(name){
   const n = name || '';
   if(/Numerical Fluency/i.test(n) && /Addition|Subtraction/i.test(n)) return 0;
   if(/Numerical Fluency/i.test(n) && /Multiplication|Division/i.test(n)) return 1;
-  if(/Extension/i.test(n)) return 4;
-  if(MAIN_ELIGIBLE_RE.test(n)) return 2;
+  if(/Computation/i.test(n)) return 2;
+  if(/Extension/i.test(n)) return 5;
   return 3;
 }
 function sortByAssessmentOrder(list){
@@ -4346,7 +4499,6 @@ function generateRfaEmail(){
   const center = CENTER_INFO[document.querySelector('input[name="emailCenter"]:checked').value];
   const scheduling = document.getElementById('rfaScheduling').checked;
   const learningPlan = document.getElementById('rfaLearningPlan').checked;
-  const dayInLife = document.getElementById('rfaDayInLife').checked;
   const homework = document.getElementById('rfaHomework').checked;
   const startDate = document.getElementById('rfaStartDate').value.trim();
   const commitment = document.getElementById('rfaCommitment').value.trim();
@@ -4372,9 +4524,6 @@ function generateRfaEmail(){
     body += `\n`;
   }
 
-  if(dayInLife){
-    body += `For a full look at what a session at Mathnasium is like day to day, see the attached Program Overview.\n\n`;
-  }
   if(homework){
     body += `We also help with homework when time allows, though our curriculum stays the priority. More detail on how that works is in the attached enrollment documents.\n\n`;
   }
@@ -4415,7 +4564,6 @@ function generateSiblingRfaEmail(){
   const center = CENTER_INFO[document.querySelector('input[name="emailCenter"]:checked').value];
   const scheduling = document.getElementById('rfaScheduling').checked;
   const learningPlan = document.getElementById('rfaLearningPlan').checked;
-  const dayInLife = document.getElementById('rfaDayInLife').checked;
   const homework = document.getElementById('rfaHomework').checked;
   const startDate = document.getElementById('rfaStartDate').value.trim();
   const commitment = document.getElementById('rfaCommitment').value.trim();
@@ -4448,9 +4596,6 @@ function generateSiblingRfaEmail(){
 
   if(learningPlan){
     body += `The attached Learning Plans detail everything we'd work on with each of them moving forward. Those skills get tackled a few at a time, with enough variety to keep things engaging while making sure they stick.\n\n`;
-  }
-  if(dayInLife){
-    body += `For a full look at what a session at Mathnasium is like day to day, see the attached Program Overview.\n\n`;
   }
   if(homework){
     body += `We also help with homework when time allows, though our curriculum stays the priority. More detail on how that works is in the attached enrollment documents.\n\n`;
@@ -5027,7 +5172,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
 });
 
 // ===== Bug report =====
-const APP_VERSION = '2026.11.02-a';
+const APP_VERSION = '2026.11.02-f';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
@@ -5072,6 +5217,7 @@ const BUG_REPORT_TOKEN = 'banapples';
       files: collectFiles().map(f => ({name:f.name, size:f.size})),
       dataset: ds, extraCharts: extras,
       emailOutput: ($('emailOut')||{}).innerText || '',
+      settings: (typeof settings!=='undefined' ? settings : null),
       errors: errLog.slice()
     };
   }
@@ -5103,7 +5249,8 @@ const BUG_REPORT_TOKEN = 'banapples';
     const btn = $('bugSend'); btn.disabled = true; setMsg('Gathering details...');
     const who = $('bugWho').value.trim();
     try{ localStorage.setItem('bugWho', who); }catch(e){}
-    const payload = { token: BUG_REPORT_TOKEN, description: desc, from: who, diagnostics: diagnostics(), screenshot: null, pdfs: [] };
+    let centerName=''; try{ const c=settings.centers.find(x=>x.id===selectedCenterId()); centerName=c?c.name:''; }catch(e){}
+    const payload = { token: BUG_REPORT_TOKEN, center: centerName, description: desc, from: who, diagnostics: diagnostics(), screenshot: null, pdfs: [] };
     try{
       if($('bugShot').checked){ try{ payload.screenshot = await screenshot(); }catch(e){ payload.diagnostics.screenshotError = String(e.message||e); } }
       if($('bugPdfs').checked){
