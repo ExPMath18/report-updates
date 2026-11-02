@@ -551,7 +551,7 @@
       <p><strong>Order in the email:</strong> assessments are walked through as Numerical Fluency Add/Sub, Numerical Fluency Mult/Div, Computation, the grade-level assessment, then Extensions. This happens automatically, no matter what order you upload the PDFs.</p>
       <p><strong>Sibling mode</strong> (top of the page): run each sibling through their own tab, then generate one combined email covering all of them.</p>
       <p><strong>Your center</strong> is chosen in <strong>Settings</strong>, and the Settings button shows which one is active. It sets the center name in the email and which extras start checked (myMathnasium scheduling, Learning Plan, homework policy). Emails sign off with "Best," and your name, so the rest of your signature comes from Gmail when you paste.</p>
-      <p><strong>Settings</strong> (top of the page): pick your center, set your default sender name, and add or edit centers and their defaults. Settings save on this device. Use <strong>Export settings</strong> to move them to another device.</p>
+      <p><strong>Settings</strong> (top of the page): pick your center, set your default sender name, and add or edit centers and their defaults. Settings save on this device.</p>
       <p style="margin-bottom:0;"><strong>Report a problem</strong> (top of the page): if something looks wrong, describe it and send. The report includes a screenshot, the PDFs you uploaded, and the details needed to fix it. Both are on by default, and you can turn either one off.</p>
     </div>
   </details>
@@ -862,27 +862,19 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
     <p class="sub">Set up your centers once. Everything saves on this device.</p>
     <label class="lbl" for="setStaff">Default sender name</label>
     <input type="text" id="setStaff" placeholder="e.g. Rebecca">
-    <label class="lbl" for="setActive">Your center (used in your emails)</label>
-    <select id="setActive"></select>
     <div class="centersHead">
-      <h3>Edit centers</h3>
+      <h3>Centers</h3>
       <button type="button" class="btn-primary btn-sm" id="setAdd">+ Add a new center</button>
     </div>
-    <select id="setCenterSel" aria-label="Choose a center to edit"></select>
+    <label class="lbl" for="setCenterSel">Your center (used in your emails)</label>
+    <select id="setCenterSel"></select>
     <div id="setCenters"></div>
     <div id="setMsg"></div>
     <div class="btn-row">
       <button type="button" class="btn-primary" id="setSave">Save</button>
       <button type="button" class="btn-ghost" id="setCancel">Cancel</button>
     </div>
-    <h3>Move or back up</h3>
-    <div class="btn-row" style="margin-top:6px;">
-      <button type="button" class="btn-ghost btn-sm" id="setExport">Export settings</button>
-      <button type="button" class="btn-ghost btn-sm" id="setImportBtn">Import settings</button>
-      <button type="button" class="btn-ghost btn-sm" id="setReset">Reset to defaults</button>
-      <input type="file" id="setImport" accept=".json,application/json" style="display:none;">
     </div>
-  </div>
 </div>
 <div id="bugModal" role="dialog" aria-modal="true" aria-labelledby="bugTitle">
   <div class="box">
@@ -4169,7 +4161,6 @@ updateSettingsLabel();
   const FLAGS = ['scheduling','learningPlan','homework'];
   function readDraftFromDom(){
     draft.staffName = $('setStaff').value.trim();
-    const act = $('setActive').value; if(act) draft.lastCenter = act;
     const card = document.querySelector('#setCenters .centerCard');
     const c = draft.centers[cur];
     if(cur<0 || !card || !c) return;
@@ -4179,26 +4170,18 @@ updateSettingsLabel();
   }
   function renderSelect(){
     const sel = $('setCenterSel'); sel.innerHTML = '';
-    const ph = document.createElement('option'); ph.value = '-1'; ph.textContent = 'Select a center...'; sel.appendChild(ph);
     draft.centers.forEach((c,i)=>{
       const o = document.createElement('option'); o.value = i; o.textContent = c.label.trim() || '(new center)';
       sel.appendChild(o);
     });
     sel.value = String(cur);
-    const act = $('setActive'); act.innerHTML = '';
-    draft.centers.forEach(c=>{
-      const o = document.createElement('option'); o.value = c.id; o.textContent = c.label.trim() || '(new center)';
-      act.appendChild(o);
-    });
-    if(!draft.centers.some(c=>c.id===draft.lastCenter)) draft.lastCenter = draft.centers[0].id;
-    act.value = draft.lastCenter;
   }
   function renderDraft(){
     if(cur >= draft.centers.length) cur = draft.centers.length - 1;
+    if(cur < 0) cur = 0;
     $('setStaff').value = draft.staffName;
     renderSelect();
     const host = $('setCenters'); host.innerHTML = '';
-    if(cur < 0) return;
     const c = draft.centers[cur];
     const card = document.createElement('div'); card.className='centerCard';
     card.innerHTML =
@@ -4216,11 +4199,11 @@ updateSettingsLabel();
     });
     const rm = card.querySelector('[data-rm]');
     if(draft.centers.length<2) rm.style.display='none';
-    rm.addEventListener('click', ()=>{ draft.centers.splice(cur,1); cur = -1; renderDraft(); });
+    rm.addEventListener('click', ()=>{ draft.centers.splice(cur,1); cur = 0; renderDraft(); });
     host.appendChild(card);
   }
   function open(){
-    draft = cloneSettings(settings); draft.lastCenter = selectedCenterId(); cur = -1; setMsg(''); renderDraft(); modal.classList.add('open');
+    draft = cloneSettings(settings); cur = Math.max(0, draft.centers.findIndex(c=>c.id===selectedCenterId())); setMsg(''); renderDraft(); modal.classList.add('open');
   }
   $('setOpen').addEventListener('click', open);
   $('setCancel').addEventListener('click', ()=>modal.classList.remove('open'));
@@ -4236,26 +4219,13 @@ updateSettingsLabel();
     readDraftFromDom();
     const bad = draft.centers.findIndex(c=>!c.label.trim() || !c.name.trim());
     if(bad>=0){ cur = bad; renderDraft(); setMsg('Each center needs a button label and a name.', true); return; }
-    const keep = draft.lastCenter;
+    const keep = draft.centers[cur].id;
     settings = cleanSettings(draft);
     settings.lastCenter = settings.centers.some(c=>c.id===keep) ? keep : settings.centers[0].id;
     saveSettings(); rebuildCenterInfo(); renderCenterToggle(settings.lastCenter);
     applyCenterDefaults(); applyStaffDefault(); updateSettingsLabel();
     modal.classList.remove('open');
   });
-  $('setExport').addEventListener('click', ()=>{
-    readDraftFromDom();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(cleanSettings(draft), null, 2)], {type:'application/json'}));
-    a.download = 'email-builder-settings.json'; document.body.appendChild(a); a.click(); a.remove();
-  });
-  $('setImportBtn').addEventListener('click', ()=>$('setImport').click());
-  $('setImport').addEventListener('change', async e=>{
-    const f = e.target.files[0]; e.target.value=''; if(!f) return;
-    try{ draft = cleanSettings(JSON.parse(await f.text())); renderDraft(); setMsg('Imported. Press Save to keep it.'); }
-    catch(err){ setMsg('That file could not be read.', true); }
-  });
-  $('setReset').addEventListener('click', ()=>{ draft = cloneSettings(DEFAULT_SETTINGS); renderDraft(); setMsg('Back to the defaults. Press Save to keep it.'); });
 })();
 
 /* Apply feature flags: hide any in-progress mode's radio option entirely
@@ -5217,7 +5187,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
 });
 
 // ===== Bug report =====
-const APP_VERSION = '2026.11.02-l';
+const APP_VERSION = '2026.11.02-m';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
