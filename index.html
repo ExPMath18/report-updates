@@ -542,14 +542,17 @@
       <p>Quick rundown for Progress Update / RFA:</p>
       <ul>
         <li><strong>Step 1:</strong> drop in <strong>all</strong> of the student's PDFs at once, main assessment, Numerical Fluency (pull the <strong>chart</strong>, not the report), Computation, Extensions, whatever you've got, and hit <strong>Analyze all</strong>. Learning Plan Report PDFs get pulled out automatically to fill Step 4 below; they don't need separate handling.</li>
-        <li><strong>Additional assessments</strong> (between Steps 1 and 2): anything that wasn't the main assessment lands here automatically, shown as a one-line summary once it's populated. Click <strong>Replace PDF</strong> on a card to swap its source, or <strong>+ Add another assessment</strong> to attach one by hand.</li>
+        <li><strong>Additional assessments</strong> (between Steps 1 and 2): anything that wasn't the main assessment lands here automatically, shown as a one-line summary. This area stays empty until a PDF adds a card. Click <strong>Replace PDF</strong> on a card to swap its source, or <strong>+ Add another assessment</strong> to attach one by hand.</li>
         <li><strong>Step 2:</strong> check the student's name, pronoun, and sender details, and fix anything that came in wrong.</li>
         <li><strong>Step 3:</strong> review the skill-by-skill breakdown and check the boxes for what's worth mentioning in the email.</li>
         <li><strong>Step 4:</strong> Learning Plan topics, auto-filled if a Learning Plan Report PDF was in the Step 1 batch, or type your own.</li>
         <li><strong>Step 5:</strong> generate the email, edit freely, then copy; bullets and formatting paste cleanly into Gmail.</li>
       </ul>
+      <p><strong>Order in the email:</strong> assessments are walked through as Numerical Fluency Add/Sub, Numerical Fluency Mult/Div, Computation, the grade-level assessment, then Extensions. This happens automatically, no matter what order you upload the PDFs.</p>
       <p><strong>Sibling mode</strong> (top of the page): run each sibling through their own tab, then generate one combined email covering all of them.</p>
-      <p style="margin-bottom:0;">The <strong>East Vancouver / West Linn</strong> toggle up top drives center-specific wording and the signature block, so always double-check it matches before generating.</p>
+      <p><strong>Your center</strong> is chosen in <strong>Settings</strong>, and the Settings button shows which one is active. It sets the center name in the email and which extras start checked (myMathnasium scheduling, Learning Plan, homework policy). Emails sign off with "Best," and your name, so the rest of your signature comes from Gmail when you paste.</p>
+      <p><strong>Settings</strong> (top of the page): pick your center, set your default sender name, and add or edit centers and their defaults. Settings save on this device. Use <strong>Export settings</strong> to move them to another device.</p>
+      <p style="margin-bottom:0;"><strong>Report a problem</strong> (top of the page): if something looks wrong, describe it and send. The report includes a screenshot, the PDFs you uploaded, and the details needed to fix it. Both are on by default, and you can turn either one off.</p>
     </div>
   </details>
   <details class="howto" id="howtoExitSummary" style="display:none;">
@@ -859,8 +862,10 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
     <p class="sub">Set up your centers once. Everything saves on this device.</p>
     <label class="lbl" for="setStaff">Default sender name</label>
     <input type="text" id="setStaff" placeholder="e.g. Rebecca">
+    <label class="lbl" for="setActive">Your center (used in your emails)</label>
+    <select id="setActive"></select>
     <div class="centersHead">
-      <h3>Centers</h3>
+      <h3>Edit centers</h3>
       <button type="button" class="btn-primary btn-sm" id="setAdd">+ Add a new center</button>
     </div>
     <select id="setCenterSel" aria-label="Choose a center to edit"></select>
@@ -4125,7 +4130,7 @@ function renderCenterToggle(selectId){
     lab.classList.toggle('active', c.id===want);
     host.appendChild(lab);
   });
-  host.style.display = settings.centers.length>1 ? '' : 'none';
+  host.style.display = 'none'; // the active center is chosen in Settings
 }
 function applyCenterDefaults(){
   const c = settings.centers.find(x=>x.id===selectedCenterId()) || settings.centers[0];
@@ -4141,6 +4146,11 @@ document.getElementById('emailCenterToggle').addEventListener('change', ()=>{
   settings.lastCenter = value; saveSettings();
   applyCenterDefaults();
 });
+function updateSettingsLabel(){
+  const c = settings.centers.find(x=>x.id===selectedCenterId());
+  const b = document.getElementById('setOpen');
+  if(b && c) b.textContent = 'Settings \u00b7 ' + c.label;
+}
 function applyStaffDefault(){
   const f = document.getElementById('staffName');
   if(f && !f.value && settings.staffName) f.value = settings.staffName;
@@ -4149,6 +4159,7 @@ rebuildCenterInfo();
 renderCenterToggle(settings.lastCenter);
 applyCenterDefaults();
 applyStaffDefault();
+updateSettingsLabel();
 
 (function(){
   const $ = id => document.getElementById(id);
@@ -4158,6 +4169,7 @@ applyStaffDefault();
   const FLAGS = ['scheduling','learningPlan','homework'];
   function readDraftFromDom(){
     draft.staffName = $('setStaff').value.trim();
+    const act = $('setActive').value; if(act) draft.lastCenter = act;
     const card = document.querySelector('#setCenters .centerCard');
     const c = draft.centers[cur];
     if(cur<0 || !card || !c) return;
@@ -4173,6 +4185,13 @@ applyStaffDefault();
       sel.appendChild(o);
     });
     sel.value = String(cur);
+    const act = $('setActive'); act.innerHTML = '';
+    draft.centers.forEach(c=>{
+      const o = document.createElement('option'); o.value = c.id; o.textContent = c.label.trim() || '(new center)';
+      act.appendChild(o);
+    });
+    if(!draft.centers.some(c=>c.id===draft.lastCenter)) draft.lastCenter = draft.centers[0].id;
+    act.value = draft.lastCenter;
   }
   function renderDraft(){
     if(cur >= draft.centers.length) cur = draft.centers.length - 1;
@@ -4201,7 +4220,7 @@ applyStaffDefault();
     host.appendChild(card);
   }
   function open(){
-    draft = cloneSettings(settings); cur = -1; setMsg(''); renderDraft(); modal.classList.add('open');
+    draft = cloneSettings(settings); draft.lastCenter = selectedCenterId(); cur = -1; setMsg(''); renderDraft(); modal.classList.add('open');
   }
   $('setOpen').addEventListener('click', open);
   $('setCancel').addEventListener('click', ()=>modal.classList.remove('open'));
@@ -4217,11 +4236,11 @@ applyStaffDefault();
     readDraftFromDom();
     const bad = draft.centers.findIndex(c=>!c.label.trim() || !c.name.trim());
     if(bad>=0){ cur = bad; renderDraft(); setMsg('Each center needs a button label and a name.', true); return; }
-    const keep = selectedCenterId();
+    const keep = draft.lastCenter;
     settings = cleanSettings(draft);
     settings.lastCenter = settings.centers.some(c=>c.id===keep) ? keep : settings.centers[0].id;
     saveSettings(); rebuildCenterInfo(); renderCenterToggle(settings.lastCenter);
-    applyCenterDefaults(); applyStaffDefault();
+    applyCenterDefaults(); applyStaffDefault(); updateSettingsLabel();
     modal.classList.remove('open');
   });
   $('setExport').addEventListener('click', ()=>{
@@ -5198,7 +5217,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
 });
 
 // ===== Bug report =====
-const APP_VERSION = '2026.11.02-j';
+const APP_VERSION = '2026.11.02-l';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
