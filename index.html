@@ -476,6 +476,23 @@
   }
   #extraDetails[open] .step-num::after{transform:rotate(180deg);}
   #extraDetails .step-num{font-size:0;}
+
+  /* Bug report */
+  .report-link{background:none;border:1px solid var(--grey-light);color:#fff;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;margin-top:12px;}
+  .report-link:hover{border-color:#fff;}
+  .app-version{font-size:11px;color:var(--grey-light);margin-left:10px;}
+  #bugModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:16px;}
+  #bugModal.open{display:flex;}
+  #bugModal .box{background:#fff;border-radius:10px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:22px;color:var(--ink);}
+  #bugModal h2{margin:0 0 4px 0;font-size:20px;}
+  #bugModal p.sub{margin:0 0 14px 0;font-size:13px;color:var(--ink-soft);}
+  #bugModal label.lbl{display:block;font-size:12.5px;font-weight:700;margin:12px 0 4px 0;}
+  #bugModal textarea,#bugModal input[type=text]{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:9px;font:inherit;font-size:14px;}
+  #bugModal textarea{min-height:110px;}
+  #bugModal .chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:10px;}
+  #bugModal .chk small{display:block;color:var(--ink-soft);}
+  #bugMsg{font-size:13px;margin-top:12px;}
+  #bugMsg.err{color:var(--down);font-weight:700;}
 </style>
 </head>
 <body>
@@ -485,6 +502,7 @@
     <div class="wordmark">MATHNASIUM<span class="sub">Exponential Potential · Staff Tool</span></div>
     <h1>Email Builder</h1>
     <p>Upload Radius assessment-chart PDFs, review the results, and draft a parent email.</p>
+    <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
   </div>
 </header>
 
@@ -826,6 +844,24 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
   <div class="footer-note">Built for Exponential Potential Mathnasiums. Runs entirely in your browser, nothing is uploaded anywhere.</div>
 </div>
 
+
+<div id="bugModal" role="dialog" aria-modal="true" aria-labelledby="bugTitle">
+  <div class="box">
+    <h2 id="bugTitle">Report a problem</h2>
+    <p class="sub">Tell us what went wrong. We get the details we need to fix it.</p>
+    <label class="lbl" for="bugDesc">What happened? What did you expect?</label>
+    <textarea id="bugDesc" placeholder="Example: I uploaded the Learning Plan and the email skipped the NF topics."></textarea>
+    <label class="lbl" for="bugWho">Your name or email (so we can follow up)</label>
+    <input type="text" id="bugWho">
+    <label class="chk"><input type="checkbox" id="bugShot" checked><span>Include a screenshot of this page<small>May show student names.</small></span></label>
+    <label class="chk"><input type="checkbox" id="bugPdfs" checked><span>Include the PDFs I uploaded<small>Contain student info. Best for fixing report bugs.</small></span></label>
+    <div id="bugMsg"></div>
+    <div class="btn-row">
+      <button type="button" class="btn-primary" id="bugSend">Send report</button>
+      <button type="button" class="btn-ghost" id="bugCancel">Cancel</button>
+    </div>
+  </div>
+</div>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -4989,6 +5025,115 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
   }
   showCopied();
 });
+
+// ===== Bug report =====
+const APP_VERSION = '2026.11.02-a';
+const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
+const BUG_REPORT_TOKEN = 'banapples';
+(function(){
+  const errLog = [];
+  const pushErr = m => { errLog.push(new Date().toISOString()+' '+String(m).slice(0,500)); if(errLog.length>20) errLog.shift(); };
+  window.addEventListener('error', e => pushErr((e.message||'error')+' @'+(e.lineno||'?')));
+  window.addEventListener('unhandledrejection', e => pushErr('promise: '+(e.reason&&e.reason.message||e.reason)));
+  const ce = console.error; console.error = function(){ try{pushErr(Array.from(arguments).join(' '));}catch(_){} return ce.apply(console, arguments); };
+
+  const $ = id => document.getElementById(id);
+  $('appVersion').textContent = 'v'+APP_VERSION;
+  const modal = $('bugModal'), msg = $('bugMsg');
+  const setMsg = (t, err) => { msg.textContent = t; msg.className = err ? 'err' : ''; };
+
+  $('bugOpen').addEventListener('click', () => {
+    setMsg('');
+    const who = $('bugWho');
+    if(!who.value){ try{ who.value = localStorage.getItem('bugWho') || ($('staffName') && $('staffName').value) || ''; }catch(e){} }
+    $('bugPdfs').disabled = !collectFiles().length;
+    if($('bugPdfs').disabled) $('bugPdfs').checked = false;
+    modal.classList.add('open');
+  });
+  $('bugCancel').addEventListener('click', () => modal.classList.remove('open'));
+
+  function collectFiles(){
+    const out = [];
+    const add = list => { Array.from(list||[]).forEach(f => { if(f && !out.includes(f)) out.push(f); }); };
+    try{ add(typeof filesChosen!=='undefined' ? filesChosen : []); }catch(e){}
+    try{ (typeof students!=='undefined' ? students : []).forEach(st => add(st.filesChosen)); }catch(e){}
+    return out;
+  }
+  function val(id){ const e=$(id); return e ? e.value : ''; }
+  function diagnostics(){
+    let ds = null, extras = null;
+    try{ ds = typeof dataset!=='undefined' ? dataset : null; }catch(e){}
+    try{ extras = typeof extraCharts!=='undefined' ? extraCharts : null; }catch(e){}
+    return {
+      version: APP_VERSION, when: new Date().toISOString(), page: location.href.split('#')[0],
+      userAgent: navigator.userAgent, screen: innerWidth+'x'+innerHeight,
+      fields: { student: val('studentName'), parent: val('parentName'), staff: val('staffName'), pronoun: val('pronoun'),
+        prevScore: val('prevScore'), currScore: val('currScore'), assessmentsGiven: val('assessmentsGiven'), planTopics: val('planTopics') },
+      files: collectFiles().map(f => ({name:f.name, size:f.size})),
+      dataset: ds, extraCharts: extras,
+      emailOutput: ($('emailOut')||{}).innerText || '',
+      errors: errLog.slice()
+    };
+  }
+  function b64(buf){
+    let s='', bytes=new Uint8Array(buf);
+    for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000));
+    return btoa(s);
+  }
+  function loadScript(src){
+    return new Promise((res,rej)=>{ const t=document.createElement('script'); t.src=src; t.onload=res; t.onerror=()=>rej(new Error('load')); document.head.appendChild(t); });
+  }
+  async function screenshot(){
+    if(!window.html2canvas) await loadScript(window.HTML2CANVAS_SRC || 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    modal.style.visibility='hidden';
+    try{
+      const c = await html2canvas(document.body, {scale:0.6, logging:false, useCORS:true});
+      return c.toDataURL('image/jpeg', 0.7).split(',')[1];
+    } finally { modal.style.visibility=''; }
+  }
+  function download(name, text){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+    a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  $('bugSend').addEventListener('click', async () => {
+    const desc = $('bugDesc').value.trim();
+    if(!desc){ setMsg('Please describe what went wrong first.', true); return; }
+    const btn = $('bugSend'); btn.disabled = true; setMsg('Gathering details...');
+    const who = $('bugWho').value.trim();
+    try{ localStorage.setItem('bugWho', who); }catch(e){}
+    const payload = { token: BUG_REPORT_TOKEN, description: desc, from: who, diagnostics: diagnostics(), screenshot: null, pdfs: [] };
+    try{
+      if($('bugShot').checked){ try{ payload.screenshot = await screenshot(); }catch(e){ payload.diagnostics.screenshotError = String(e.message||e); } }
+      if($('bugPdfs').checked){
+        let total = 0;
+        for(const f of collectFiles()){
+          total += f.size;
+          if(total > 12*1024*1024){ payload.diagnostics.pdfsSkipped = true; break; }
+          payload.pdfs.push({name:f.name, data:b64(await f.arrayBuffer())});
+        }
+      }
+    }catch(e){ payload.diagnostics.attachError = String(e.message||e); }
+
+    if(!BUG_REPORT_URL){
+      download('email-builder-report.json', JSON.stringify(payload, null, 2));
+      setMsg('Reporting is not set up yet. A report file was downloaded. Send it to Ashley.');
+      btn.disabled = false; return;
+    }
+    setMsg('Sending...');
+    try{
+      await fetch(BUG_REPORT_URL, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)});
+      setMsg('Sent. Thank you!');
+      $('bugDesc').value='';
+      setTimeout(()=>{ modal.classList.remove('open'); setMsg(''); }, 1800);
+    }catch(e){
+      download('email-builder-report.json', JSON.stringify(payload, null, 2));
+      setMsg('Could not send. A report file was downloaded. Please send it to Ashley.', true);
+    }
+    btn.disabled = false;
+  });
+})();
 </script>
 </body>
 </html>
