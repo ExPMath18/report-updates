@@ -4185,8 +4185,8 @@ updateSettingsLabel();
     const c = draft.centers[cur];
     const card = document.createElement('div'); card.className='centerCard';
     card.innerHTML =
-      '<div class="row2"><div><label class="lbl">Button label</label><input type="text" data-f="label"></div>'+
-      '<div><label class="lbl">Name used in emails</label><input type="text" data-f="name"></div></div>'+
+      '<div class="row2"><div><label class="lbl">Short name</label><input type="text" data-f="label"></div>'+
+      '<div><label class="lbl">Full center name</label><input type="text" data-f="name"></div></div>'+
       '<label class="chk"><input type="checkbox" data-f="scheduling"><span>We handle scheduling through myMathnasium</span></label>'+
       '<label class="chk"><input type="checkbox" data-f="learningPlan"><span>We send a Learning Plan document</span></label>'+
       '<label class="chk"><input type="checkbox" data-f="homework"><span>Include homework policy explanation</span></label>'+
@@ -4207,6 +4207,7 @@ updateSettingsLabel();
   }
   $('setOpen').addEventListener('click', open);
   $('setCancel').addEventListener('click', ()=>modal.classList.remove('open'));
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.classList.remove('open'); });
   $('setCenterSel').addEventListener('change', e=>{ readDraftFromDom(); cur = +e.target.value; renderDraft(); });
   $('setAdd').addEventListener('click', ()=>{
     readDraftFromDom();
@@ -4218,7 +4219,7 @@ updateSettingsLabel();
   $('setSave').addEventListener('click', ()=>{
     readDraftFromDom();
     const bad = draft.centers.findIndex(c=>!c.label.trim() || !c.name.trim());
-    if(bad>=0){ cur = bad; renderDraft(); setMsg('Each center needs a button label and a name.', true); return; }
+    if(bad>=0){ cur = bad; renderDraft(); setMsg('Each center needs a short name and a full name.', true); return; }
     const keep = draft.centers[cur].id;
     settings = cleanSettings(draft);
     settings.lastCenter = settings.centers.some(c=>c.id===keep) ? keep : settings.centers[0].id;
@@ -5187,7 +5188,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
 });
 
 // ===== Bug report =====
-const APP_VERSION = '2026.11.02-m';
+const APP_VERSION = '2026.11.02-n';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
@@ -5211,6 +5212,8 @@ const BUG_REPORT_TOKEN = 'banapples';
     modal.classList.add('open');
   });
   $('bugCancel').addEventListener('click', () => modal.classList.remove('open'));
+  modal.addEventListener('click', e => { if(e.target===modal) modal.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape'){ modal.classList.remove('open'); const sm=document.getElementById('setModal'); if(sm) sm.classList.remove('open'); } });
 
   function collectFiles(){
     const out = [];
