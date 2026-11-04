@@ -677,6 +677,13 @@
         <div class="meta-grid">
           <div class="field"><label>Parent / guardian name</label><input type="text" id="sotmParentName" placeholder="e.g. Kristine"></div>
           <div class="field"><label>Student first name</label><input type="text" id="sotmStudentName"></div>
+          <div class="field"><label>Pronoun</label>
+            <select id="sotmPronoun">
+              <option value="they">they / them / their</option>
+              <option value="she">she / her / hers</option>
+              <option value="he">he / him / his</option>
+            </select>
+          </div>
           <div class="field"><label>Month</label><input type="text" id="sotmMonth" placeholder="e.g. October"></div>
           <div class="field"><label>Your name (sender)</label><input type="text" id="sotmStaffName" placeholder="e.g. Rebecca"></div>
         </div>
@@ -4159,6 +4166,7 @@ function buildSotmEmail(){
   const student = document.getElementById('sotmStudentName').value.trim() || '[FILL IN: student name]';
   const month = document.getElementById('sotmMonth').value.trim() || '[FILL IN: month]';
   const staff = document.getElementById('sotmStaffName').value.trim();
+  const pr = pronounSet(document.getElementById('sotmPronoun').value);
   const center = CENTER_INFO[selectedCenterId()];
   const noms = document.getElementById('sotmNominations').value.split('\n')
     .map(l=>l.replace(/^\s*[\u2022*-]\s*/, '').trim()).filter(Boolean);
@@ -4177,7 +4185,7 @@ function buildSotmEmail(){
     body += `${intro} ${because}\n\n`;
   } else {
     body += `${intro}\n\n`;
-    body += `Unfortunately ${student} did not win this month, but we still wanted to celebrate their ${month} nomination!\n\n`;
+    body += `Unfortunately ${student} did not win this month, but we still wanted to celebrate ${pr.poss} ${month} nomination!\n\n`;
     body += `${because}\n\n`;
   }
   body += `Great work and congratulations, ${student}. Thank you for working so hard and being an amazing representation of our ${center.name} community.\n\n`;
@@ -5387,7 +5395,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-d';
+const APP_VERSION = '2026.11.04-e';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
