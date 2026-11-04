@@ -1,0 +1,7 @@
+# Never commit student files. This repo is public.
+*.pdf
+*.PDF
+tests/pdfs/
+tests/serve/
+node_modules/
+.DS_Store
