@@ -595,6 +595,10 @@
         <input type="radio" name="emailMode" value="exit">
         <span>Exit Summary <span style="font-weight:400;">(leaving student)</span></span>
       </label>
+      <label id="modeLabelSotm">
+        <input type="radio" name="emailMode" value="sotm">
+        <span>Student of the Month <span style="font-weight:400;">(nominee or winner)</span></span>
+      </label>
     </div>
     <div class="mode-toggle top-controls-center" id="emailCenterToggle"></div>
     <label class="toggle-row top-controls-sibling">
@@ -646,6 +650,45 @@
       </div>
     </div>
   </details>
+
+  <!-- STEP 2 (Student of the Month mode) -->
+  <div class="step" id="stepSotm" style="display:none;">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <h2>Student of the Month details</h2>
+      <div class="hint">Type it in, the tool fills the template</div>
+    </div>
+    <div class="step-body">
+      <div class="field-section">
+        <div class="field-section-label">Result</div>
+        <div class="mode-toggle" id="sotmTypeToggle">
+          <label class="active" id="sotmLabelNominee">
+            <input type="radio" name="sotmType" value="nominee" checked>
+            <span>Nominated <span style="font-weight:400;">(did not win)</span></span>
+          </label>
+          <label id="sotmLabelWinner">
+            <input type="radio" name="sotmType" value="winner">
+            <span>Winner</span>
+          </label>
+        </div>
+      </div>
+      <div class="field-section">
+        <div class="field-section-label">Family &amp; student</div>
+        <div class="meta-grid">
+          <div class="field"><label>Parent / guardian name</label><input type="text" id="sotmParentName" placeholder="e.g. Kristine"></div>
+          <div class="field"><label>Student first name</label><input type="text" id="sotmStudentName"></div>
+          <div class="field"><label>Month</label><input type="text" id="sotmMonth" placeholder="e.g. October"></div>
+          <div class="field"><label>Your name (sender)</label><input type="text" id="sotmStaffName" placeholder="e.g. Rebecca"></div>
+        </div>
+      </div>
+      <div class="field-section">
+        <div class="field-section-label">Nominations</div>
+        <p class="desc" style="margin-top:0;">One nomination per line, finishing the sentence "was nominated because:". A single line reads inline, several lines become a bulleted list.</p>
+        <textarea class="plan" id="sotmNominations" placeholder="Consistently helps other students when they get stuck
+Showed great focus and perseverance on fractions"></textarea>
+      </div>
+    </div>
+  </div>
 
   <!-- STEP 2 (Exit Summary mode) -->
   <div class="step" id="stepExit" style="display:none;">
@@ -932,6 +975,7 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
      EMAIL GENERATION ......... shared email helpers
      EXIT SUMMARY MODE ........ hand-entered exit narrative (feature flagged)
      EXIT SUMMARY — SIBLING MODE
+     STUDENT OF THE MONTH MODE  hand-entered nominee / winner emails
      SETTINGS ................. center profiles, CENTER_INFO, defaults
      BLURB LIBRARY ............ assessment descriptions, topic reference
      RISK-FREE ASSESSMENT EMAIL
@@ -3508,14 +3552,17 @@ function applyEmailModeVisibility(){
   const mode = document.querySelector('input[name="emailMode"]:checked').value;
   const isRfa = mode === 'rfa';
   const isExit = mode === 'exit';
+  const isSotm = mode === 'sotm';
+  const isManual = isExit || isSotm; // hand-entered modes skip the PDF flow
 
   document.getElementById('modeLabelProgress').classList.toggle('active', mode === 'progress');
   document.getElementById('modeLabelRfa').classList.toggle('active', isRfa);
   document.getElementById('modeLabelExit').classList.toggle('active', isExit);
+  document.getElementById('modeLabelSotm').classList.toggle('active', isSotm);
 
-  document.getElementById('rfaPanel').style.display = (!isExit && isRfa) ? 'block' : 'none';
-  document.getElementById('progressOnlyFields').style.display = (!isExit && !isRfa) ? 'block' : 'none';
-  document.getElementById('progressOnlyToggle').style.display = (!isExit && !isRfa) ? 'block' : 'none';
+  document.getElementById('rfaPanel').style.display = (!isManual && isRfa) ? 'block' : 'none';
+  document.getElementById('progressOnlyFields').style.display = (!isManual && !isRfa) ? 'block' : 'none';
+  document.getElementById('progressOnlyToggle').style.display = (!isManual && !isRfa) ? 'block' : 'none';
   document.getElementById('currScoreLabel').textContent = isRfa ? 'Assessment score' : 'Current score';
   document.getElementById('currDateLabel').textContent = isRfa ? 'Assessment date' : 'Current date';
 
@@ -3523,18 +3570,20 @@ function applyEmailModeVisibility(){
   // Exit Summary, but otherwise leave their visibility exactly as the
   // existing parse/manual-entry flow already manages it (don't touch it here).
   const step1 = document.querySelector('.step'); // Step 1 (Upload) is the first .step in the DOM
-  if(isExit){
+  if(isManual){
     step1.style.display = 'none';
     document.getElementById('extraDetails').style.display = 'none';
     document.getElementById('stepMeta').style.display = 'none';
     document.getElementById('stepTable').style.display = 'none';
     document.getElementById('stepPlan').style.display = 'none';
-    document.getElementById('stepExit').style.display = 'block';
+    document.getElementById('stepExit').style.display = isExit ? 'block' : 'none';
+    document.getElementById('stepSotm').style.display = isSotm ? 'block' : 'none';
     document.getElementById('stepEmail').style.display = 'block';
   } else {
     step1.style.display = '';
     document.getElementById('extraDetails').style.display = '';
     document.getElementById('stepExit').style.display = 'none';
+    document.getElementById('stepSotm').style.display = 'none';
     // stepMeta / stepTable / stepPlan / stepEmail stay whatever the
     // parse/manual-entry flow already set them to.
   }
@@ -3542,14 +3591,14 @@ function applyEmailModeVisibility(){
   // Sibling mode isn't wired up for the milestone flow — hide the toggle rather
   // than let it silently do nothing.
   const sibRow = document.getElementById('siblingModeToggle').closest('label');
-  if(sibRow) sibRow.style.display = isExit ? 'none' : '';
+  if(sibRow) sibRow.style.display = isManual ? 'none' : '';
 
   if(isExit){
     if(!milestones.length) addMilestone();
     renderMilestones();
   }
 
-  if(isRfa && !isExit){
+  if(isRfa && !isManual){
     // a risk-free assessment is always a first-time single snapshot — no "previous" to compare
     document.getElementById('preAssessmentToggle').checked = true;
     dataset.singleChartMode = true;
@@ -4087,6 +4136,65 @@ async function buildExitSiblingEmail(){
   return body;
 }
 
+/* ---------------------------------------------------------
+   STUDENT OF THE MONTH MODE
+   Two hand-entered templates: a nominee who did not win, and the winner.
+   Uses the same parent / student / month / nominations fields for both.
+--------------------------------------------------------- */
+document.querySelectorAll('input[name="sotmType"]').forEach(radio=>{
+  radio.addEventListener('change', ()=>{
+    const winner = document.querySelector('input[name="sotmType"]:checked').value === 'winner';
+    document.getElementById('sotmLabelNominee').classList.toggle('active', !winner);
+    document.getElementById('sotmLabelWinner').classList.toggle('active', winner);
+  });
+});
+
+function sotmIsWinner(){
+  return document.querySelector('input[name="sotmType"]:checked').value === 'winner';
+}
+
+function buildSotmEmail(){
+  const winner = sotmIsWinner();
+  const parent = document.getElementById('sotmParentName').value.trim() || 'there';
+  const student = document.getElementById('sotmStudentName').value.trim() || '[FILL IN: student name]';
+  const month = document.getElementById('sotmMonth').value.trim() || '[FILL IN: month]';
+  const staff = document.getElementById('sotmStaffName').value.trim();
+  const center = CENTER_INFO[selectedCenterId()];
+  const noms = document.getElementById('sotmNominations').value.split('\n')
+    .map(l=>l.replace(/^\s*[\u2022*-]\s*/, '').trim()).filter(Boolean);
+
+  const intro = `Throughout the month, Instructors nominate students who are exceeding expectations. At the end of the month, a few students are chosen from the pool to be our winners!`;
+
+  // one nomination reads inline, several become a bulleted list
+  let because;
+  if(!noms.length) because = `${student} was nominated because: [FILL IN: nomination]`;
+  else if(noms.length === 1) because = `${student} was nominated because: ${noms[0]}`;
+  else because = `${student} was nominated because:\n\n${noms.map(n=>`\u2022 ${n}`).join('\n')}`;
+
+  let body = `Dear ${parent},\n\n`;
+  if(winner){
+    body += `We have some exciting news!! ${student} has been chosen as our Student of the Month for ${month}!\n\n`;
+    body += `${intro} ${because}\n\n`;
+  } else {
+    body += `${intro}\n\n`;
+    body += `Unfortunately ${student} did not win this month, but we still wanted to celebrate their ${month} nomination!\n\n`;
+    body += `${because}\n\n`;
+  }
+  body += `Great work and congratulations, ${student}. Thank you for working so hard and being an amazing representation of our ${center.name} community.\n\n`;
+  body += `Warmly,`;
+  if(staff) body += `\n${staff}`;
+  return body;
+}
+
+function buildSotmEmailHeader(){
+  const student = document.getElementById('sotmStudentName').value.trim() || 'Student';
+  const month = document.getElementById('sotmMonth').value.trim();
+  const when = month ? `${month} ` : '';
+  return sotmIsWinner()
+    ? `${student} is our ${when}Student of the Month!`
+    : `${student}'s ${when}Student of the Month Nomination`;
+}
+
 function buildExitEmailHeader(){
   if(exitSiblingModeOn() && exitStudents.length > 1){
     snapshotActiveExitStudent();
@@ -4197,6 +4305,8 @@ function updateSettingsLabel(){
 function applyStaffDefault(){
   const f = document.getElementById('staffName');
   if(f && !f.value && settings.staffName) f.value = settings.staffName;
+  const sf = document.getElementById('sotmStaffName');
+  if(sf && !sf.value && settings.staffName) sf.value = settings.staffName;
 }
 rebuildCenterInfo();
 renderCenterToggle(settings.lastCenter);
@@ -4948,6 +5058,11 @@ function setEmailOutput(plainText, chartMap){
 
 document.getElementById('genBtn').addEventListener('click', async ()=>{
   const mode = document.querySelector('input[name="emailMode"]:checked').value;
+  if(mode === 'sotm'){
+    document.getElementById('emailHeaderOut').value = buildSotmEmailHeader();
+    setEmailOutput(buildSotmEmail());
+    return;
+  }
   if(mode === 'exit'){
     document.getElementById('emailHeaderOut').value = buildExitEmailHeader();
     const exitBody = (exitSiblingModeOn() && exitStudents.length > 1)
@@ -5272,7 +5387,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-c';
+const APP_VERSION = '2026.11.04-d';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
