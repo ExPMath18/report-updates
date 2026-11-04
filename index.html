@@ -1,5 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  FILE MAP (search for the capitalized names below; line numbers change)
+
+  This is one static file. Top to bottom:
+    1. <style>         all CSS. Colors are variables at the top (:root).
+    2. <body>          the page markup: header, "How to use", mode toggle, Steps 1-5.
+    3. Modals          #setModal (Settings) and #bugModal (Report a problem).
+    4. <script>        all the logic. Sections are listed in the next comment.
+
+  Rules for editing are in CLAUDE.md. Bump APP_VERSION (in the BUG REPORT
+  section) on every change.
+-->
 <head>
 <meta charset="UTF-8">
 <title>Email Builder - Exponential Potential Mathnasiums</title>
@@ -653,7 +665,7 @@
         <div class="field-section-label">Parent / family (shared across siblings)</div>
         <div class="meta-grid">
           <div class="field"><label>Parent / guardian name</label><input type="text" id="exitParentName" placeholder="e.g. Kristine"></div>
-          <div class="field"><label>Your name (sender)</label><input type="text" id="exitStaffName" placeholder="e.g. Holly"></div>
+          <div class="field"><label>Your name (sender)</label><input type="text" id="exitStaffName" placeholder="e.g. Rebecca"></div>
         </div>
       </div>
 
@@ -894,6 +906,42 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
   </div>
 </div>
 <script>
+/* =========================================================
+   SCRIPT MAP. Search for these headings (in capitals) to jump around.
+
+   SETUP AND STATE
+     FEATURE FLAGS ............ hide or show in-progress features
+     STATE .................... globals for the current student
+     SIBLING MODE ............. one tab per sibling, saved snapshots
+
+   READING PDFs
+     FILE PICKER .............. the drop zone and file list
+     PDF TEXT EXTRACTION ...... PDF to positioned rows
+     parseChart ............... percentage-bar charts
+     LEARNING PLAN REPORT PARSER
+     NUMERICAL FLUENCY CHECKUP  tiered checkbox report
+     NARRATIVE REPORT PARSER .. Assessment and Mastery reports, score cards
+     PARSE BUTTON ............. "Analyze all": sorts files, routes add-ons
+
+   ON-PAGE EDITING
+     RENDER META .............. Step 2 fields
+     RENDER TABLE ............. Step 3 skill table
+     ADDITIONAL ASSESSMENTS ... extra cards (NF, Extensions, Computation)
+
+   EMAILS
+     EMAIL GENERATION ......... shared email helpers
+     EXIT SUMMARY MODE ........ hand-entered exit narrative (feature flagged)
+     EXIT SUMMARY — SIBLING MODE
+     SETTINGS ................. center profiles, CENTER_INFO, defaults
+     BLURB LIBRARY ............ assessment descriptions, topic reference
+     RISK-FREE ASSESSMENT EMAIL
+     PROGRESS UPDATE EMAIL
+
+   OUTPUT AND SUPPORT
+     EMAIL OUTPUT TOOLBAR ..... bold, italic, lists on the email box
+     COPY TO CLIPBOARD ........ pastes as real HTML into Gmail
+     BUG REPORT ............... Report a problem, APP_VERSION
+   ========================================================= */
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 /* ---------------------------------------------------------
@@ -1950,10 +1998,10 @@ function parseNarrativeReport(rows){
   return {mode: isMastery ? 'mastery' : 'assessment', studentName, date:dateStr,
           categories, fallbackCategories, overall, initialOverall,
           // parseTwoCardScores reads the side-by-side boxes at the top of a
-          // combined report (Olivia Hiatt's "Level 6 Extension | Level 7"
+          // combined report (a "Level 6 Extension | Level 7"
           // layout); parseAssessmentSkillsNames reads the same information
           // from a report that instead stacks one "{Name} {num}/{den}" row
-          // per assessment under "Assessment Skills" (Isla Hansen's layout).
+          // per assessment under "Assessment Skills" (a second combined-report layout).
           // Either shape means the same thing downstream - which assessments
           // this page actually covers - so the two are interchangeable here.
           topAssessments: parseTwoCardScores(rows) || parseAssessmentSkillsNames(rows) || parseCardColumns(rows)};
@@ -2389,11 +2437,11 @@ document.getElementById('parseBtn').addEventListener('click', async ()=>{
 
     // A single narrative file can carry TWO score cards (parseTwoCardScores)
     // when Radius ran two assessments the same day - one main, one an add-on
-    // riding along (like Olivia Hiatt's "Level 6 Extension" + "Level 7" in
+    // riding along (like a "Level 6 Extension" + "Level 7" in
     // one PDF). The add-on's score is clean, known data (its own card).
     // Its MASTERED topics get split out too, wherever ASSESSMENT_TOPIC_REFERENCE
-    // can confidently attribute a whole category to it (matching Ashley's
-    // real 0% reference exports) - anything ambiguous stays out, left for
+    // can confidently attribute a whole category to it (matching real
+    // 0% reference exports) - anything ambiguous stays out, left for
     // staff to add by hand, rather than guessing.
     narrativeMain.forEach(c=>{
       const top = c.narrative && c.narrative.topAssessments;
@@ -2445,7 +2493,7 @@ document.getElementById('parseBtn').addEventListener('click', async ()=>{
       // When a file carries multiple score cards (see the addon-routing pass
       // above), its own "Skills Mastered N/M P%" footer is the COMBINED
       // total across every card on that page, not any single one of them.
-      // Olivia Hiatt's file, for example, footers at 35/58 (60%) - the sum
+      // One combined file, for example, footers at 35/58 (60%) - the sum
       // of Level 6 Extension's 5/13 AND Level 7's 30/45 - which is wrong for
       // either identity individually. Prefer that specific card's own score
       // from topAssessments whenever one's available.
@@ -3314,7 +3362,7 @@ async function parseAnyAssessmentFile(file){
   if(narrative && (narrativeMasteredFlat(narrative, false).length || narrative.fallbackCategories.length)){
     let assessmentNames = guessAssessmentNamesFromFilename(file.name);
     // Radius occasionally exports with the assessment-name segment of the
-    // filename blank (e.g. "Isla_Hansen___10_13_2026_10_38.pdf" - an empty
+    // filename blank (e.g. "Student_Name___10_13_2026_10_38.pdf" - an empty
     // run of underscores where a name like "Level_7" should sit), leaving
     // this file with no detected name at all and no way to tell staff what
     // assessment it even was. Fall back to reading the name(s) straight off
@@ -4051,6 +4099,9 @@ function buildExitEmailHeader(){
 
 /* Center-based defaults for the RFA toggles come from Settings. Applied on
    page load and whenever the center changes. */
+/* ---------------------------------------------------------
+   SETTINGS (center profiles saved on this device)
+--------------------------------------------------------- */
 /* ===== Settings: center profiles saved on this device ===== */
 const SETTINGS_KEY = 'emailBuilderSettings.v1';
 const DEFAULT_SETTINGS = {
@@ -4303,7 +4354,7 @@ const MAIN_ELIGIBLE_RE = /^(Level \d+(?! Extension)|Great Foundations|Algebra Re
    barely overlap between a base Level and its own Extension (Extensions
    cluster almost entirely in Geometry and Measurement/Data/Probability).
    That's enough to confidently split a combined multi-card narrative report
-   (e.g. Olivia Hiatt's single PDF with both a "Level 6 Extension" card and
+   (e.g. a single PDF with both a "Level 6 Extension" card and
    a "Level 7" card) by exact category-size match, without guessing.
    Extend this as more reference files come in - it's additive, nothing
    downstream breaks if an assessment isn't in here yet, it just falls back
@@ -4398,6 +4449,10 @@ function pronounSet(p){
   return {subj:'they',obj:'them',poss:'their',be:'are',has:'have'};
 }
 
+/* ---------------------------------------------------------
+   RISK-FREE ASSESSMENT EMAIL
+   Assessment ordering, per-child walkthrough, single and sibling RFA emails.
+--------------------------------------------------------- */
 /* Builds the assessment-walkthrough + mastery list for one child, from raw
    data rather than the live DOM — used by both the single-student RFA email
    (reading the currently active globals) and the sibling email (reading
@@ -4421,6 +4476,26 @@ function sortByAssessmentOrder(list){
     .map(o=>o.x);
 }
 
+/* The Numerical Fluency checkup reports skill areas in tiers (Mastery,
+   Competency, Awareness, No Knowledge) and has no overall percentage. Returns
+   {total, mastered} for a card like that, or null for any other card. */
+function tierSummary(card){
+  const tiers = (card.topics||[]).filter(t=>/^(Mastery|Competency|Awareness|No Knowledge)$/i.test((t.curr||'').trim()));
+  if(!tiers.length) return null;
+  return {total: tiers.length, mastered: tiers.filter(t=>/^Mastery$/i.test(t.curr.trim())).length};
+}
+/* The "scored 57% overall" part of a sentence, or the tier version for a
+   checkup that has no percentage. */
+function scoreClause(name, pct, tier, pr){
+  if(pct) return `${name} scored ${pct} overall`;
+  if(tier){
+    if(tier.mastered === tier.total) return `${name} showed mastery in all ${tier.total} skill areas`;
+    if(tier.mastered === 0) return `we found a clear place to start in each of the ${tier.total} skill areas`;
+    return `${name} showed mastery in ${tier.mastered} of ${tier.total} skill areas`;
+  }
+  return `${name} scored [score] overall`;
+}
+
 function buildChildSection(childDataset, childExtraCharts, assessmentsGivenStr, name, pr, center){
   let text = '';
 
@@ -4433,17 +4508,17 @@ function buildChildSection(childDataset, childExtraCharts, assessmentsGivenStr, 
   // list can return just one entry for an ordinary single-assessment file,
   // and that should read with the normal single-assessment wording below.
   const topAssessments = childDataset.topAssessments;
-  const usableExtras = (childExtraCharts||[]).filter(c=>c.label.trim() && c.score.trim());
+  const usableExtras = (childExtraCharts||[]).filter(c=>c.label.trim() && (c.score.trim() || tierSummary(c)));
   let cards = [];
   if(topAssessments && topAssessments.length >= 2){
     cards = topAssessments.map(a=>({name:a.name, pct:fracLabelToPct(a.num, a.den)}));
     const covered = new Set(cards.map(c=>forParentFacing(c.name).toLowerCase()));
     usableExtras.forEach(c=>{
-      if(!covered.has(forParentFacing(c.label.trim()).toLowerCase())) cards.push({name:c.label.trim(), pct:fracLabelToPct(c.score.trim())});
+      if(!covered.has(forParentFacing(c.label.trim()).toLowerCase())) cards.push({name:c.label.trim(), pct:c.score.trim() ? fracLabelToPct(c.score.trim()) : '', tier:tierSummary(c)});
     });
   } else if(usableExtras.length && mainLabel){
     cards = [{name:mainLabel, pct:fracLabelToPct(childDataset.currScore || '')},
-             ...usableExtras.map(c=>({name:c.label.trim(), pct:fracLabelToPct(c.score.trim())}))];
+             ...usableExtras.map(c=>({name:c.label.trim(), pct:c.score.trim() ? fracLabelToPct(c.score.trim()) : '', tier:tierSummary(c)}))];
   }
 
   if(cards.length >= 2){
@@ -4453,7 +4528,7 @@ function buildChildSection(childDataset, childExtraCharts, assessmentsGivenStr, 
     cards.forEach(c=>{
       const blurb = findBlurb(c.name);
       const exp = blurb ? '' : parentFacingExplanation(forParentFacing(c.name));
-      let line = `On the ${forParentFacing(c.name)} assessment${exp ? `, ${exp},` : ','} ${name} scored ${c.pct || '[score]'} overall`;
+      let line = `On the ${forParentFacing(c.name)} assessment${exp ? `, ${exp},` : ','} ${scoreClause(name, c.pct, c.tier, pr)}`;
       line += blurb ? `. ${blurb}` : '.';
       text += `${line}\n\n`;
     });
@@ -4486,7 +4561,9 @@ function buildChildSection(childDataset, childExtraCharts, assessmentsGivenStr, 
       const extraExp = blurb ? '' : parentFacingExplanation(forParentFacing(c.label.trim()));
       let line = `We also had ${name} work through the ${forParentFacing(c.label.trim())} assessment`;
       line += blurb ? `. ${blurb}` : (extraExp ? `, ${extraExp}.` : '.');
-      line += ` ${pr.subj[0].toUpperCase()+pr.subj.slice(1)} scored ${fracLabelToPct(c.score.trim())} overall.`;
+      const tierC = tierSummary(c);
+      const clause = scoreClause(pr.subj[0].toUpperCase()+pr.subj.slice(1), c.score.trim() ? fracLabelToPct(c.score.trim()) : '', tierC, pr);
+      line += ` ${clause[0].toUpperCase()+clause.slice(1)}.`;
       text += `${line}\n\n`;
     });
   }
@@ -4641,6 +4718,10 @@ function generateSiblingRfaEmail(){
   return body;
 }
 
+/* ---------------------------------------------------------
+   PROGRESS UPDATE EMAIL
+   Per-child comparison section, single and sibling Progress Update emails.
+--------------------------------------------------------- */
 /* Builds one child's assessment-comparison paragraph + mastery/improved/new
    bullets + extra-assessment notes + updated plan topics, for Progress
    Update mode. Mirrors the logic in the single-student genBtn handler below,
@@ -5187,8 +5268,11 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
   showCopied();
 });
 
+/* ---------------------------------------------------------
+   BUG REPORT (Report a problem button, APP_VERSION lives here)
+--------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.02-n';
+const APP_VERSION = '2026.11.04-c';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
