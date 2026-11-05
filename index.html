@@ -4162,7 +4162,7 @@ function sotmIsWinner(){
 
 function buildSotmEmail(){
   const winner = sotmIsWinner();
-  const parent = document.getElementById('sotmParentName').value.trim() || 'there';
+  const parent = document.getElementById('sotmParentName').value.trim() || '[FILL IN: parent name]';
   const student = document.getElementById('sotmStudentName').value.trim() || '[FILL IN: student name]';
   const month = document.getElementById('sotmMonth').value.trim() || '[FILL IN: month]';
   const staff = document.getElementById('sotmStaffName').value.trim();
@@ -4185,7 +4185,7 @@ function buildSotmEmail(){
     body += `${intro} ${because}\n\n`;
   } else {
     body += `${intro}\n\n`;
-    body += `Unfortunately ${student} did not win this month, but we still wanted to celebrate ${pr.poss} ${month} nomination!\n\n`;
+    body += `${student} was not chosen as a winner this month, but being nominated is something to be proud of, and we wanted to celebrate ${pr.poss} ${month} nomination!\n\n`;
     body += `${because}\n\n`;
   }
   body += `Great work and congratulations, ${student}. Thank you for working so hard and being an amazing representation of our ${center.name} community.\n\n`;
@@ -4195,12 +4195,11 @@ function buildSotmEmail(){
 }
 
 function buildSotmEmailHeader(){
-  const student = document.getElementById('sotmStudentName').value.trim() || 'Student';
+  const student = document.getElementById('sotmStudentName').value.trim();
   const month = document.getElementById('sotmMonth').value.trim();
   const when = month ? `${month} ` : '';
-  return sotmIsWinner()
-    ? `${student} is our ${when}Student of the Month!`
-    : `${student}'s ${when}Student of the Month Nomination`;
+  if(sotmIsWinner()) return student ? `${student} is our ${when}Student of the Month!` : `Our ${when}Student of the Month!`;
+  return student ? `${student}'s ${when}Student of the Month Nomination` : `${when}Student of the Month Nomination`;
 }
 
 function buildExitEmailHeader(){
@@ -5395,7 +5394,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-e';
+const APP_VERSION = '2026.11.04-f';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
