@@ -1074,6 +1074,12 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
   <input class="ws-field" id="wsSetLabel">
   <label class="ws-lbl" for="wsSetName">Full center name</label>
   <input class="ws-field" id="wsSetName">
+  <label class="ws-lbl" for="wsSetAddress">Address</label>
+  <input class="ws-field" id="wsSetAddress" placeholder="Street, city, state, zip">
+  <label class="ws-lbl" for="wsSetPhone">Phone</label>
+  <input class="ws-field" id="wsSetPhone" placeholder="(555) 555-5555">
+  <label class="ws-lbl" for="wsSetBooking">Booking link</label>
+  <input class="ws-field" id="wsSetBooking" placeholder="https://...">
   <label class="ws-chk"><input type="checkbox" id="wsSetScheduling"><span>Scheduling through myMathnasium</span></label>
   <label class="ws-chk"><input type="checkbox" id="wsSetLearningPlan"><span>Include Learning Plan document</span></label>
   <label class="ws-chk"><input type="checkbox" id="wsSetHomework"><span>Include homework policy explanation</span></label>
@@ -1106,7 +1112,7 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
       <button type="button" class="email-tb-btn" data-cmd="createLink" title="Link">Link</button>
     </div>
     <div id="tplEdBody" contenteditable="true"></div>
-    <p class="desc" style="font-size:12.5px;margin:6px 0 0;">Put details that change in curly braces, like {student}, {parent} or {date}. The page asks for each one when someone uses the template. {sender} and {center} fill in automatically.</p>
+    <p class="desc" style="font-size:12.5px;margin:6px 0 0;">Put details that change in curly braces, like {student}, {parent} or {date}. The page asks for each one when someone uses the template. {sender}, {center}, {address}, {phone} and {booking link} fill in automatically from your center settings.</p>
     <div class="ws-msg" id="tplEdMsg"></div>
     <div class="btn-row" style="margin-top:6px;"><button class="btn-primary" type="button" id="tplEdSave">Save template</button> <button class="btn-ghost" type="button" id="tplEdCancel">Cancel</button></div>
   </div>
@@ -4993,7 +4999,7 @@ async function wsSignIn(center, password){
 }
 function wsApply(){
   const c = ws.center;
-  settings.centers = [{id:c.id, label:c.label, name:c.name, scheduling:c.scheduling, learningPlan:c.learningPlan, homework:c.homework, sotm:c.sotm}];
+  settings.centers = [{id:c.id, label:c.label, name:c.name, scheduling:c.scheduling, learningPlan:c.learningPlan, homework:c.homework, sotm:c.sotm, address:c.address||'', phone:c.phone||'', booking:c.booking||''}];
   settings.lastCenter = c.id;
   rebuildCenterInfo(); renderCenterToggle(c.id);
   applyCenterDefaults(); applyStaffDefault(); updateSettingsLabel();
@@ -5053,6 +5059,7 @@ function wsOpenPanel(){
   const c = ws.center;
   wsEl('wsStaff').value = settings.staffName || '';
   wsEl('wsSetLabel').value = c.label; wsEl('wsSetName').value = c.name;
+  wsEl('wsSetAddress').value = c.address || ''; wsEl('wsSetPhone').value = c.phone || ''; wsEl('wsSetBooking').value = c.booking || '';
   wsEl('wsSetScheduling').checked = c.scheduling; wsEl('wsSetLearningPlan').checked = c.learningPlan;
   wsEl('wsSetHomework').checked = c.homework; wsEl('wsSetSotm').checked = c.sotm;
   ['wsCurPw','wsPanelPw1','wsPanelPw2'].forEach(id => wsEl(id).value = '');
@@ -5108,6 +5115,7 @@ async function wsSaveCenter(){
   try{
     const r = await wsCall({action:'saveSettings', center:ws.center.id, password:ws.password, settings:{
       label:wsEl('wsSetLabel').value, name:wsEl('wsSetName').value,
+      address:wsEl('wsSetAddress').value, phone:wsEl('wsSetPhone').value, booking:wsEl('wsSetBooking').value,
       scheduling:wsEl('wsSetScheduling').checked, learningPlan:wsEl('wsSetLearningPlan').checked,
       homework:wsEl('wsSetHomework').checked, sotm:wsEl('wsSetSotm').checked}});
     if(!r.ok){ wsPanelMsg(wsErr(r), true); return; }
@@ -5171,6 +5179,9 @@ function tplBlanksOf(html){
   const out = []; String(html).replace(/\{([^{}]+)\}/g, (m, k) => { if(out.indexOf(k) < 0) out.push(k); return m; });
   return out;
 }
+/* Blanks that come from the center settings, not from the form. */
+const TPL_CENTER_KEYS = {'address':'address', 'phone':'phone', 'booking link':'booking'};
+function tplCenterValue(k){ const f = TPL_CENTER_KEYS[k.toLowerCase()]; return f && ws.center ? String(ws.center[f] || '') : ''; }
 function tplCurrent(){ const id = wsEl('tplPick').value; return ws.templates.find(t => t.id === id) || null; }
 let tplLastId = '';
 function tplRender(){
@@ -5196,7 +5207,7 @@ function tplRenderBlanks(){
   const keys = tplBlanksOf(t.html);
   wsEl('tplPronounWrap').style.display = keys.some(k => TPL_PRONOUN[k.toLowerCase()]) ? '' : 'none';
   keys.forEach(k => {
-    if(k === 'center' || TPL_PRONOUN[k.toLowerCase()]) return;
+    if(k === 'center' || TPL_PRONOUN[k.toLowerCase()] || tplCenterValue(k)) return;
     const wrap = document.createElement('div');
     const lab = document.createElement('label'); lab.className = 'ws-lbl'; lab.textContent = k.charAt(0).toUpperCase() + k.slice(1); lab.style.marginTop = '8px';
     const inp = document.createElement('input'); inp.className = 'ws-field'; inp.dataset.k = k; inp.type = 'text'; inp.autocomplete = 'off';
@@ -5214,6 +5225,7 @@ function tplGenerate(){
   const html = clientSanitize(t.html).replace(/\{([^{}]+)\}/g, (m, k) => {
     const low = k.toLowerCase();
     if(k === 'center') return esc(CENTER_INFO[selectedCenterId()].name);
+    if(tplCenterValue(k)) return esc(tplCenterValue(k));
     if(TPL_PRONOUN[low]){ const w = pr[TPL_PRONOUN[low]]; return esc(k.charAt(0) === k.charAt(0).toUpperCase() && k.charAt(0) !== k.charAt(0).toLowerCase() ? w.charAt(0).toUpperCase() + w.slice(1) : w); }
     return vals[k] ? esc(vals[k]) : '[FILL IN: ' + esc(k) + ']';
   });
@@ -6256,7 +6268,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.05-a';
+const APP_VERSION = '2026.11.05-b';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
