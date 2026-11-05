@@ -57,11 +57,12 @@ Known limits:
 
 ## Student of the Month nominations
 Staff submit nominations in a Google Form. In SotM mode the page loads them, runs a raffle wheel and fills the email fields.
-- Data comes from an Apps Script web app bound to the form's response sheet (`SOTM_URL` constant, empty until deployed). The script lives outside this repo. The page POSTs `text/plain` JSON: `{action:'list'|'clear', password, month:'YYYY-MM'}`. Replies are `{ok:true, rows:[...]}` or `{ok:false, error}`. A CSV upload is the fallback.
+- Data comes from an Apps Script web app bound to the form's response sheet (`SOTM_URL` constant). The script lives outside this repo. The page POSTs `text/plain` JSON: `{action:'list'|'clear', password, month:'YYYY-MM'}`. Replies are `{ok:true, rows:[...]}` or `{ok:false, error}`. A CSV upload is the fallback.
 - The password is a Script Property in the owner's script. It is typed into the page and kept in `sessionStorage` only. Never put it, or any student name, in this repo.
 - Loaded rows and winners live in memory and `sessionStorage`. "Clear from this page" wipes them. "Delete this month's submissions" removes them from the sheet and form (needs password and typing DELETE).
 - One raffle entry per nominated student. Winners use the Winner template, everyone else the Nominated template. The winner count defaults to 3 (an assumption, editable on the page).
 - Parent name and pronoun are not on the form, so they stay manual.
+- Student of the Month is a per-center setting (`sotm` on each center in Settings). MEV has it on, WL off, and new centers start off. When off, the mode button is hidden.
 
 ## Bug reports
 "Report a problem" posts JSON to a Google Apps Script web app, which emails the owner the description, center, screenshot (html2canvas, loaded on demand), uploaded PDFs and diagnostics. It uses `mode: 'no-cors'`, so the page cannot read the reply. If no URL is set, it downloads a report file instead.
