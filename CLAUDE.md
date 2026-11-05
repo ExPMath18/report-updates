@@ -74,6 +74,7 @@ No test framework. Two kinds of checks:
 Always check that unrelated emails did not change. Most regressions in this project were a fix for one report layout quietly changing another.
 
 ## Open items
+- The Student of the Month nominations source (`SOTM_URL`, the form and its sheet) is MEV only. The email templates work for any center. Decide later how WL gets its own nominations source (a second form and script, or one shared form with a center question). Until then, WL staff can use the hand-entered fields.
 - Two main-level assessments in one baked-comparison report (for example Level 6 and Level 7) are scored together. Waiting on the center director's decision to run them as separate reports.
 - Computation ordering is built to the rules above but has not been tested with a real Computation report.
 - Test on iPad: PDF upload and the formatting toolbar on the email box.
