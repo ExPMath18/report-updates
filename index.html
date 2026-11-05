@@ -275,6 +275,36 @@
   .btn-ghost:hover{border-color:var(--ink-soft);}
   .btn-sm{padding:5px 10px;font-size:12px;border-radius:5px;}
   .btn-row{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap;}
+
+  /* workspace sign-in, side panel, templates */
+  #wsGate{position:fixed;inset:0;background:#fff;z-index:3000;display:none;align-items:center;justify-content:center;padding:24px;overflow:auto;}
+  #wsGate.open{display:flex;}
+  #wsGate .gbox{max-width:400px;width:100%;}
+  #wsGate h2{font-size:24px;margin:0 0 6px;}
+  #wsGate p{color:var(--ink-soft);margin:0 0 14px;font-size:14px;}
+  .ws-field{display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:15px;margin:0 0 10px;}
+  .ws-lbl{display:block;font-size:12.5px;font-weight:700;margin:10px 0 4px;}
+  .ws-msg{min-height:20px;font-size:13.5px;margin:6px 0;color:var(--ink-soft);}
+  .ws-msg.err{color:var(--maroon);font-weight:600;}
+  .ws-link{background:none;border:0;color:var(--red);cursor:pointer;font-size:13.5px;padding:0;text-decoration:underline;}
+  #wsPanelBack{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1400;display:none;}
+  #wsPanelBack.open{display:block;}
+  #wsPanel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:#fff;z-index:1500;box-shadow:-4px 0 18px rgba(0,0,0,.2);transform:translateX(105%);transition:transform .2s;overflow-y:auto;padding:18px 20px 40px;box-sizing:border-box;}
+  #wsPanel.open{transform:none;}
+  #wsPanel h2{margin:0;font-size:20px;}
+  #wsPanel h3{margin:22px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:14px;}
+  .ws-chk{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-top:8px;}
+  .tpl-row{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .tpl-row .nm{flex:1;min-width:0;}
+  .tpl-row .nm small{display:block;color:var(--ink-soft);font-size:11.5px;}
+  .tpl-row.off .nm{opacity:.5;}
+  .tpl-row button{border:1px solid var(--line);background:#fafafa;border-radius:5px;padding:3px 7px;font-size:12px;cursor:pointer;}
+  .tpl-row button:disabled{opacity:.3;cursor:default;}
+  #tplEditModal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:1600;padding:16px;}
+  #tplEditModal.open{display:flex;}
+  #tplEditModal .tbox{background:#fff;border-radius:10px;padding:18px;max-width:640px;width:100%;max-height:94vh;overflow:auto;}
+  #tplEdBody{border:1px solid var(--line);border-radius:6px;min-height:240px;padding:10px;font-size:14.5px;line-height:1.5;}
+  .tpl-blank-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 14px;}
   /* Student of the Month nominations + raffle wheel */
   .nom-box{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;background:#fafafa;}
   .nom-box h3{margin:0 0 4px;font-size:15px;}
@@ -561,7 +591,7 @@
     <div class="wordmark">MATHNASIUM<span class="sub">Exponential Potential · Staff Tool</span></div>
     <h1>Email Builder</h1>
     <p>Upload Radius assessment-chart PDFs, review the results, and draft a parent email.</p>
-    <button type="button" class="report-link" id="setOpen">Settings</button> <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
+    <button type="button" class="report-link" id="setOpen">Settings</button> <button type="button" class="report-link" id="wsSignOutLink" style="display:none;">Sign out</button> <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
   </div>
 </header>
 
@@ -622,6 +652,10 @@
       <label id="modeLabelExit">
         <input type="radio" name="emailMode" value="exit">
         <span>Exit Summary <span style="font-weight:400;">(leaving student)</span></span>
+      </label>
+      <label id="modeLabelTpl" style="display:none;">
+        <input type="radio" name="emailMode" value="tpl">
+        <span>Templates <span style="font-weight:400;">(any other email)</span></span>
       </label>
       <label id="modeLabelSotm">
         <input type="radio" name="emailMode" value="sotm">
@@ -936,6 +970,25 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
     </div>
   </div>
 
+  <!-- TEMPLATES (any other email, from the center's template library) -->
+  <div class="step" id="stepTpl" style="display:none;">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <h2>Choose a template</h2>
+      <div class="hint">Fill in the blanks</div>
+    </div>
+    <div class="step-body">
+      <label class="ws-lbl" for="tplPick" style="margin-top:0;">Template</label>
+      <select id="tplPick" class="ws-field" style="max-width:420px;"></select>
+      <div id="tplPronounWrap" style="display:none;">
+        <label class="ws-lbl" for="tplPronoun">Pronouns for the student</label>
+        <select id="tplPronoun" class="ws-field" style="max-width:220px;"><option value="she">She / her</option><option value="he">He / him</option><option value="they">They / them</option></select>
+      </div>
+      <div class="tpl-blank-grid" id="tplBlanks"></div>
+      <p class="desc" id="tplEmpty" style="display:none;">No templates yet. Open Settings to add one.</p>
+    </div>
+  </div>
+
   <!-- STEP 5 -->
   <div class="step" id="stepEmail" style="display:none;">
     <div class="step-head">
@@ -975,6 +1028,89 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
   <div class="footer-note">Built for Exponential Potential Mathnasiums. Runs entirely in your browser, nothing is uploaded anywhere.</div>
 </div>
 
+
+<div id="wsGate" role="dialog" aria-modal="true" aria-labelledby="wsGateTitle">
+  <div class="gbox">
+    <div id="wsBusy" style="display:none;"><h2>Signing in...</h2></div>
+    <div id="wsSignin">
+      <h2 id="wsGateTitle">Sign in to your center</h2>
+      <p>Enter your center and its password.</p>
+      <input class="ws-field" id="wsCenter" placeholder="Center (for example MEV)" autocomplete="off" aria-label="Center">
+      <input class="ws-field" id="wsPassword" type="password" placeholder="Password" autocomplete="off" aria-label="Password">
+      <button class="btn-primary" type="button" id="wsSignInBtn" style="width:100%;padding:12px;">Sign in</button>
+      <p style="margin-top:12px;"><button type="button" class="ws-link" id="wsToCreate">Create a new center</button> <span id="wsOfflineWrap" style="display:none;"> &middot; <button type="button" class="ws-link" id="wsOffline">Continue without signing in</button></span></p>
+    </div>
+    <div id="wsCreate" style="display:none;">
+      <h2>Create a new center</h2>
+      <p>You need a setup code from Exponential Potential. Your center starts with the standard email templates.</p>
+      <input class="ws-field" id="wsNewCode" type="password" placeholder="Setup code" autocomplete="off" aria-label="Setup code">
+      <input class="ws-field" id="wsNewLabel" placeholder="Short name (for example Maple Leaf)" aria-label="Short name">
+      <input class="ws-field" id="wsNewName" placeholder="Full name (for example Mathnasium of Maple Leaf)" aria-label="Full name">
+      <button class="btn-primary" type="button" id="wsCreateBtn" style="width:100%;padding:12px;">Create center</button>
+      <p style="margin-top:12px;"><button type="button" class="ws-link" id="wsBackSignin">Back to sign in</button></p>
+    </div>
+    <div id="wsChange" style="display:none;">
+      <h2>Choose a new password</h2>
+      <p>Pick a password your team will use to sign in. It needs at least 6 characters.</p>
+      <input class="ws-field" id="wsNewPw1" type="password" placeholder="New password" autocomplete="new-password" aria-label="New password">
+      <input class="ws-field" id="wsNewPw2" type="password" placeholder="Type it again" autocomplete="new-password" aria-label="New password again">
+      <button class="btn-primary" type="button" id="wsChangeBtn" style="width:100%;padding:12px;">Save password</button>
+    </div>
+    <div class="ws-msg" id="wsGateMsg" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<div id="wsPanelBack"></div>
+<aside id="wsPanel" aria-labelledby="wsPanelTitle" aria-hidden="true">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <h2 id="wsPanelTitle">Settings</h2>
+    <button type="button" class="ws-link" id="wsPanelClose">Close</button>
+  </div>
+  <div class="ws-msg" id="wsPanelMsg" role="status" aria-live="polite"></div>
+  <label class="ws-lbl" for="wsStaff">Your name (for sign-offs)</label>
+  <input class="ws-field" id="wsStaff" placeholder="First name">
+  <h3>Center</h3>
+  <label class="ws-lbl" for="wsSetLabel">Short name</label>
+  <input class="ws-field" id="wsSetLabel">
+  <label class="ws-lbl" for="wsSetName">Full center name</label>
+  <input class="ws-field" id="wsSetName">
+  <label class="ws-chk"><input type="checkbox" id="wsSetScheduling"><span>Scheduling through myMathnasium</span></label>
+  <label class="ws-chk"><input type="checkbox" id="wsSetLearningPlan"><span>Include Learning Plan document</span></label>
+  <label class="ws-chk"><input type="checkbox" id="wsSetHomework"><span>Include homework policy explanation</span></label>
+  <label class="ws-chk"><input type="checkbox" id="wsSetSotm"><span>Student of the Month</span></label>
+  <div class="btn-row"><button class="btn-primary btn-sm" type="button" id="wsSaveCenter">Save center settings</button></div>
+  <h3>Email templates</h3>
+  <div id="wsTplList"></div>
+  <div class="btn-row"><button class="btn-ghost btn-sm" type="button" id="wsAddTpl">Add a template</button></div>
+  <h3>Password</h3>
+  <input class="ws-field" id="wsCurPw" type="password" placeholder="Current password" autocomplete="off" aria-label="Current password">
+  <input class="ws-field" id="wsPanelPw1" type="password" placeholder="New password" autocomplete="new-password" aria-label="New password">
+  <input class="ws-field" id="wsPanelPw2" type="password" placeholder="New password again" autocomplete="new-password" aria-label="New password again">
+  <div class="btn-row"><button class="btn-ghost btn-sm" type="button" id="wsChangePw">Change password</button></div>
+  <h3>Account</h3>
+  <div class="btn-row" style="margin-top:0;"><button class="btn-ghost btn-sm" type="button" id="wsPanelSignOut">Sign out</button></div>
+</aside>
+
+<div id="tplEditModal" role="dialog" aria-modal="true" aria-labelledby="tplEdTitle">
+  <div class="tbox">
+    <h2 id="tplEdTitle" style="margin:0 0 6px;">Edit template</h2>
+    <label class="ws-lbl" for="tplEdName">Name</label>
+    <input class="ws-field" id="tplEdName">
+    <label class="ws-lbl" for="tplEdCat">Group</label>
+    <input class="ws-field" id="tplEdCat" list="tplCatList"><datalist id="tplCatList"></datalist>
+    <label class="ws-lbl">Email text</label>
+    <div class="email-toolbar" id="tplEdToolbar">
+      <button type="button" class="email-tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+      <button type="button" class="email-tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+      <button type="button" class="email-tb-btn" data-cmd="insertUnorderedList" title="Bullet list">&#8226; List</button>
+      <button type="button" class="email-tb-btn" data-cmd="createLink" title="Link">Link</button>
+    </div>
+    <div id="tplEdBody" contenteditable="true"></div>
+    <p class="desc" style="font-size:12.5px;margin:6px 0 0;">Put details that change in curly braces, like {student}, {parent} or {date}. The page asks for each one when someone uses the template. {sender} and {center} fill in automatically.</p>
+    <div class="ws-msg" id="tplEdMsg"></div>
+    <div class="btn-row" style="margin-top:6px;"><button class="btn-primary" type="button" id="tplEdSave">Save template</button> <button class="btn-ghost" type="button" id="tplEdCancel">Cancel</button></div>
+  </div>
+</div>
 
 <div id="wheelModal" role="dialog" aria-modal="true" aria-labelledby="wheelTitle">
   <div class="wbox">
@@ -3632,12 +3768,14 @@ function applyEmailModeVisibility(){
   const isRfa = mode === 'rfa';
   const isExit = mode === 'exit';
   const isSotm = mode === 'sotm';
-  const isManual = isExit || isSotm; // hand-entered modes skip the PDF flow
+  const isTpl = mode === 'tpl';
+  const isManual = isExit || isSotm || isTpl; // hand-entered modes skip the PDF flow
 
   document.getElementById('modeLabelProgress').classList.toggle('active', mode === 'progress');
   document.getElementById('modeLabelRfa').classList.toggle('active', isRfa);
   document.getElementById('modeLabelExit').classList.toggle('active', isExit);
   document.getElementById('modeLabelSotm').classList.toggle('active', isSotm);
+  document.getElementById('modeLabelTpl').classList.toggle('active', isTpl);
 
   document.getElementById('rfaPanel').style.display = (!isManual && isRfa) ? 'block' : 'none';
   document.getElementById('progressOnlyFields').style.display = (!isManual && !isRfa) ? 'block' : 'none';
@@ -3657,12 +3795,15 @@ function applyEmailModeVisibility(){
     document.getElementById('stepPlan').style.display = 'none';
     document.getElementById('stepExit').style.display = isExit ? 'block' : 'none';
     document.getElementById('stepSotm').style.display = isSotm ? 'block' : 'none';
+    document.getElementById('stepTpl').style.display = isTpl ? 'block' : 'none';
     document.getElementById('stepEmail').style.display = 'block';
+    if(isTpl && typeof tplRender === 'function') tplRender();
   } else {
     step1.style.display = '';
     document.getElementById('extraDetails').style.display = '';
     document.getElementById('stepExit').style.display = 'none';
     document.getElementById('stepSotm').style.display = 'none';
+    document.getElementById('stepTpl').style.display = 'none';
     // stepMeta / stepTable / stepPlan / stepEmail stay whatever the
     // parse/manual-entry flow already set them to.
   }
@@ -4799,6 +4940,321 @@ updateSettingsLabel();
   });
 })();
 
+
+/* ---------------------------------------------------------
+   WORKSPACE (sign-in, side panel, templates)
+   Each center signs in with its own password. Its settings and email templates
+   live in a shared Google Sheet behind an Apps Script web app (WORKSPACE_URL).
+   Nothing about students goes there. When WORKSPACE_URL is empty, or the Sheet
+   cannot be reached, the page keeps working with the settings saved on this
+   device.
+--------------------------------------------------------- */
+const WORKSPACE_URL = 'https://script.google.com/macros/s/AKfycbwwvmIdGDBUYJ4FOIC8PByVk6e-42A4D_YK0oZv4DIvUQkdAZK2JH5ux8VPXL-mnqE6/exec';
+const WS_LOGIN_KEY = 'emailBuilderLogin.v1';
+const ws = {center:null, password:'', templates:[], offline:false};
+const wsEl = id => document.getElementById(id);
+
+async function wsCall(body){
+  const res = await fetch(WORKSPACE_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
+  return res.json();
+}
+function wsErr(r){
+  const e = r && r.error;
+  if(e === 'bad sign-in') return 'That center or password is not right.';
+  if(e === 'locked') return 'Too many tries. Wait 15 minutes and try again.';
+  if(e === 'bad setup code') return 'That setup code is not right.';
+  if(e === 'taken') return 'That center name is already taken. Try another.';
+  if(e === 'too short') return 'The password needs at least 6 characters.';
+  if(e === 'too common') return 'Please choose a different password than the starting one.';
+  if(e === 'must change password') return 'Choose a new password first.';
+  return 'Something went wrong. Try again in a moment.';
+}
+function wsShow(section, msg, isErr){
+  ['wsBusy','wsSignin','wsCreate','wsChange'].forEach(id => wsEl(id).style.display = (id === section) ? '' : 'none');
+  const m = wsEl('wsGateMsg'); m.textContent = msg || ''; m.classList.toggle('err', !!isErr);
+  wsEl('wsGate').classList.add('open');
+  const first = wsEl(section) && wsEl(section).querySelector('input'); if(first) first.focus();
+}
+function wsStore(center, password){ try{ localStorage.setItem(WS_LOGIN_KEY, JSON.stringify({center:center, password:password})); }catch(e){} }
+function wsStored(){ try{ const d = JSON.parse(localStorage.getItem(WS_LOGIN_KEY) || 'null'); return (d && d.center && d.password) ? d : null; }catch(e){ return null; } }
+function wsForget(){ try{ localStorage.removeItem(WS_LOGIN_KEY); }catch(e){} }
+
+/* Sign in. Returns 'ok', 'change', 'bad' or 'network'. */
+async function wsSignIn(center, password){
+  let r;
+  try{ r = await wsCall({action:'login', center:center, password:password}); }
+  catch(e){ return {state:'network'}; }
+  if(!r.ok) return {state:'bad', reply:r};
+  ws.center = r.center; ws.password = password; ws.templates = r.templates || [];
+  if(r.center.mustChange) return {state:'change'};
+  wsStore(r.center.id, password);
+  wsApply();
+  return {state:'ok'};
+}
+function wsApply(){
+  const c = ws.center;
+  settings.centers = [{id:c.id, label:c.label, name:c.name, scheduling:c.scheduling, learningPlan:c.learningPlan, homework:c.homework, sotm:c.sotm}];
+  settings.lastCenter = c.id;
+  rebuildCenterInfo(); renderCenterToggle(c.id);
+  applyCenterDefaults(); applyStaffDefault(); updateSettingsLabel();
+  wsEl('wsGate').classList.remove('open');
+  wsEl('modeLabelTpl').style.display = '';
+  wsEl('wsSignOutLink').style.display = '';
+  if(document.querySelector('input[name="emailMode"]:checked').value === 'tpl') tplRender();
+}
+async function wsDoSignIn(){
+  const center = wsEl('wsCenter').value.trim(), pw = wsEl('wsPassword').value;
+  if(!center || !pw){ wsShow('wsSignin', 'Enter your center and password.', true); return; }
+  wsShow('wsBusy');
+  const r = await wsSignIn(center, pw);
+  if(r.state === 'ok') return;
+  if(r.state === 'change'){ wsShow('wsChange', 'Welcome! Please choose your own password.'); return; }
+  wsShow('wsSignin', r.state === 'network' ? 'Could not reach the workspace. Check your connection.' : wsErr(r.reply), true);
+  wsEl('wsOfflineWrap').style.display = '';
+}
+async function wsDoChange(){
+  const a = wsEl('wsNewPw1').value, b = wsEl('wsNewPw2').value;
+  if(a !== b){ wsShow('wsChange', 'The two passwords do not match.', true); return; }
+  let r; try{ r = await wsCall({action:'changePassword', center:ws.center.id, password:ws.password, newPassword:a}); }
+  catch(e){ wsShow('wsChange', 'Could not reach the workspace.', true); return; }
+  if(!r.ok){ wsShow('wsChange', wsErr(r), true); return; }
+  const out = await wsSignIn(ws.center.id, a);
+  if(out.state !== 'ok') wsShow('wsSignin', 'Password saved. Please sign in again.', false);
+}
+async function wsDoCreate(){
+  const code = wsEl('wsNewCode').value, label = wsEl('wsNewLabel').value.trim(), name = wsEl('wsNewName').value.trim();
+  if(!code || !label || !name){ wsShow('wsCreate', 'Fill in all three boxes.', true); return; }
+  const id = label.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if(!id){ wsShow('wsCreate', 'The short name needs letters or numbers.', true); return; }
+  let r; try{ r = await wsCall({action:'createCenter', setupCode:code, center:id, label:label, name:name}); }
+  catch(e){ wsShow('wsCreate', 'Could not reach the workspace.', true); return; }
+  if(!r.ok){ wsShow('wsCreate', wsErr(r), true); return; }
+  const out = await wsSignIn(id, 'mathrocks');
+  if(out.state === 'change') wsShow('wsChange', 'Your center is ready. Please choose your own password.');
+  else wsShow('wsSignin', 'Your center is ready. Sign in with the starting password you were given.');
+}
+function wsSignOut(){ wsForget(); location.reload(); }
+
+async function wsInit(){
+  if(!WORKSPACE_URL) return;
+  const saved = wsStored();
+  if(!saved){ wsShow('wsSignin'); return; }
+  wsShow('wsBusy');
+  const r = await wsSignIn(saved.center, saved.password);
+  if(r.state === 'ok') return;
+  if(r.state === 'network'){ wsEl('wsOfflineWrap').style.display = ''; wsShow('wsSignin', 'Could not reach the workspace. Check your connection, or continue without signing in.', true); wsEl('wsCenter').value = saved.center; return; }
+  if(r.state === 'change'){ wsShow('wsChange', 'Please choose your own password.'); return; }
+  wsForget(); wsShow('wsSignin', 'Please sign in again.', false);
+}
+
+/* ----- side panel ----- */
+function wsPanelMsg(t, isErr){ const m = wsEl('wsPanelMsg'); m.textContent = t || ''; m.classList.toggle('err', !!isErr); }
+function wsOpenPanel(){
+  const c = ws.center;
+  wsEl('wsStaff').value = settings.staffName || '';
+  wsEl('wsSetLabel').value = c.label; wsEl('wsSetName').value = c.name;
+  wsEl('wsSetScheduling').checked = c.scheduling; wsEl('wsSetLearningPlan').checked = c.learningPlan;
+  wsEl('wsSetHomework').checked = c.homework; wsEl('wsSetSotm').checked = c.sotm;
+  ['wsCurPw','wsPanelPw1','wsPanelPw2'].forEach(id => wsEl(id).value = '');
+  wsPanelMsg(''); wsRenderTplList();
+  wsEl('wsPanelBack').classList.add('open'); wsEl('wsPanel').classList.add('open'); wsEl('wsPanel').setAttribute('aria-hidden','false');
+}
+function wsClosePanel(){
+  wsEl('wsPanelBack').classList.remove('open'); wsEl('wsPanel').classList.remove('open'); wsEl('wsPanel').setAttribute('aria-hidden','true');
+}
+async function wsRefreshTemplates(){
+  const r = await wsCall({action:'login', center:ws.center.id, password:ws.password});
+  if(r.ok){ ws.templates = r.templates || []; wsRenderTplList(); tplRender(); }
+}
+function wsRenderTplList(){
+  const host = wsEl('wsTplList'); host.innerHTML = '';
+  if(!ws.templates.length){ host.textContent = 'No templates yet.'; return; }
+  ws.templates.forEach((t, i) => {
+    const row = document.createElement('div'); row.className = 'tpl-row' + (t.active ? '' : ' off');
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = t.name;
+    const sm = document.createElement('small'); sm.textContent = t.category + (t.active ? '' : ' (hidden)'); nm.appendChild(sm);
+    const mk = (label, title, fn, disabled) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.disabled = !!disabled; b.addEventListener('click', fn); return b; };
+    const del = mk('Delete', 'Delete template', async () => {
+      if(del.dataset.armed !== '1'){ del.dataset.armed = '1'; del.textContent = 'Sure?'; setTimeout(()=>{ del.dataset.armed = ''; del.textContent = 'Delete'; }, 3000); return; }
+      await wsSave({action:'deleteTemplate', id:t.id}, 'Template deleted.');
+    });
+    row.append(nm,
+      mk('▲', 'Move up', () => wsMove(i, -1), i === 0),
+      mk('▼', 'Move down', () => wsMove(i, 1), i === ws.templates.length - 1),
+      mk('Edit', 'Edit template', () => tplOpenEditor(t)),
+      mk(t.active ? 'Hide' : 'Show', 'Hide or show in the Templates list', () => wsSave({action:'saveTemplate', template:{id:t.id, category:t.category, name:t.name, html:t.html, active:!t.active}}, t.active ? 'Hidden from the Templates list.' : 'Visible again.')),
+      del);
+    host.appendChild(row);
+  });
+}
+async function wsSave(body, okMsg){
+  wsPanelMsg('Saving...');
+  try{
+    const r = await wsCall(Object.assign({center:ws.center.id, password:ws.password}, body));
+    if(!r.ok){ wsPanelMsg(wsErr(r), true); return false; }
+    await wsRefreshTemplates(); wsPanelMsg(okMsg || 'Saved.'); return true;
+  }catch(e){ wsPanelMsg('Could not reach the workspace. Nothing was saved.', true); return false; }
+}
+async function wsMove(i, dir){
+  const ids = ws.templates.map(t => t.id); const j = i + dir;
+  if(j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  ws.templates.splice(j, 0, ws.templates.splice(i, 1)[0]); wsRenderTplList();  // show the move right away
+  await wsSave({action:'reorder', ids:ids}, 'Order saved.');
+}
+async function wsSaveCenter(){
+  settings.staffName = wsEl('wsStaff').value.trim(); saveSettings(); applyStaffDefault();
+  wsPanelMsg('Saving...');
+  try{
+    const r = await wsCall({action:'saveSettings', center:ws.center.id, password:ws.password, settings:{
+      label:wsEl('wsSetLabel').value, name:wsEl('wsSetName').value,
+      scheduling:wsEl('wsSetScheduling').checked, learningPlan:wsEl('wsSetLearningPlan').checked,
+      homework:wsEl('wsSetHomework').checked, sotm:wsEl('wsSetSotm').checked}});
+    if(!r.ok){ wsPanelMsg(wsErr(r), true); return; }
+    ws.center = r.center; wsApply(); wsPanelMsg('Saved.');
+  }catch(e){ wsPanelMsg('Could not reach the workspace. Nothing was saved.', true); }
+}
+async function wsPanelChangePw(){
+  const cur = wsEl('wsCurPw').value, a = wsEl('wsPanelPw1').value, b = wsEl('wsPanelPw2').value;
+  if(cur !== ws.password){ wsPanelMsg('Your current password is not right.', true); return; }
+  if(a !== b){ wsPanelMsg('The two new passwords do not match.', true); return; }
+  try{
+    const r = await wsCall({action:'changePassword', center:ws.center.id, password:ws.password, newPassword:a});
+    if(!r.ok){ wsPanelMsg(wsErr(r), true); return; }
+    ws.password = a; wsStore(ws.center.id, a);
+    ['wsCurPw','wsPanelPw1','wsPanelPw2'].forEach(id => wsEl(id).value = '');
+    wsPanelMsg('Password changed. Share the new one with your team.');
+  }catch(e){ wsPanelMsg('Could not reach the workspace.', true); }
+}
+
+/* ----- template editor ----- */
+let tplEditing = null;
+function tplOpenEditor(t){
+  tplEditing = t || null;
+  wsEl('tplEdTitle').textContent = t ? 'Edit template' : 'New template';
+  wsEl('tplEdName').value = t ? t.name : '';
+  wsEl('tplEdCat').value = t ? t.category : 'Other';
+  wsEl('tplEdBody').innerHTML = t ? clientSanitize(t.html) : '<p></p>';
+  wsEl('tplEdMsg').textContent = '';
+  const cats = Array.from(new Set(ws.templates.map(x => x.category)));
+  wsEl('tplCatList').innerHTML = ''; cats.forEach(c => { const o = document.createElement('option'); o.value = c; wsEl('tplCatList').appendChild(o); });
+  wsEl('tplEditModal').classList.add('open'); wsEl('tplEdName').focus();
+}
+async function tplSaveEditor(){
+  const name = wsEl('tplEdName').value.trim();
+  if(!name){ wsEl('tplEdMsg').textContent = 'Give the template a name.'; wsEl('tplEdMsg').classList.add('err'); return; }
+  const html = clientSanitize(wsEl('tplEdBody').innerHTML);
+  const tpl = {id: tplEditing ? tplEditing.id : undefined, category: wsEl('tplEdCat').value.trim() || 'Other', name:name, html:html, active: tplEditing ? tplEditing.active : true};
+  wsEl('tplEditModal').classList.remove('open');
+  await wsSave({action:'saveTemplate', template:tpl}, 'Template saved.');
+}
+
+/* Keep only simple formatting. */
+function clientSanitize(html){
+  const doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
+  const ok = {P:1,BR:1,B:1,STRONG:1,I:1,EM:1,U:1,UL:1,OL:1,LI:1,A:1,DIV:1,SPAN:1};
+  (function walk(node){
+    Array.from(node.childNodes).forEach(ch => {
+      if(ch.nodeType === 1){
+        if(!ok[ch.tagName]){ if(/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED)$/.test(ch.tagName)){ ch.remove(); return; } walk(ch); while(ch.firstChild) node.insertBefore(ch.firstChild, ch); ch.remove(); return; }
+        Array.from(ch.attributes).forEach(a => { if(!(ch.tagName === 'A' && a.name === 'href' && /^(https?:|mailto:)/i.test(a.value))) ch.removeAttribute(a.name); });
+        walk(ch);
+      }else if(ch.nodeType !== 3){ ch.remove(); }
+    });
+  })(doc.body.firstChild);
+  return doc.body.firstChild.innerHTML;
+}
+
+/* ----- Templates mode ----- */
+const TPL_PRONOUN = {'he/she':'subj', 'his/her':'poss', 'him/her':'obj'};
+function tplBlanksOf(html){
+  const out = []; String(html).replace(/\{([^{}]+)\}/g, (m, k) => { if(out.indexOf(k) < 0) out.push(k); return m; });
+  return out;
+}
+function tplCurrent(){ const id = wsEl('tplPick').value; return ws.templates.find(t => t.id === id) || null; }
+let tplLastId = '';
+function tplRender(){
+  if(!ws.center) return;
+  const pick = wsEl('tplPick'), keep = pick.value;
+  const active = ws.templates.filter(t => t.active);
+  pick.innerHTML = '';
+  const groups = {}; active.forEach(t => { (groups[t.category] = groups[t.category] || []).push(t); });
+  Object.keys(groups).forEach(cat => {
+    const g = document.createElement('optgroup'); g.label = cat;
+    groups[cat].forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; g.appendChild(o); });
+    pick.appendChild(g);
+  });
+  if(active.some(t => t.id === keep)) pick.value = keep;
+  wsEl('tplEmpty').style.display = active.length ? 'none' : '';
+  tplRenderBlanks();
+}
+function tplRenderBlanks(){
+  const t = tplCurrent(), host = wsEl('tplBlanks');
+  const old = {}; host.querySelectorAll('input').forEach(i => old[i.dataset.k] = i.value);
+  host.innerHTML = '';
+  if(!t){ wsEl('tplPronounWrap').style.display = 'none'; return; }
+  const keys = tplBlanksOf(t.html);
+  wsEl('tplPronounWrap').style.display = keys.some(k => TPL_PRONOUN[k.toLowerCase()]) ? '' : 'none';
+  keys.forEach(k => {
+    if(k === 'center' || TPL_PRONOUN[k.toLowerCase()]) return;
+    const wrap = document.createElement('div');
+    const lab = document.createElement('label'); lab.className = 'ws-lbl'; lab.textContent = k.charAt(0).toUpperCase() + k.slice(1); lab.style.marginTop = '8px';
+    const inp = document.createElement('input'); inp.className = 'ws-field'; inp.dataset.k = k; inp.type = 'text'; inp.autocomplete = 'off';
+    inp.value = (t.id === tplLastId && old[k] !== undefined) ? old[k] : (k === 'sender' ? (settings.staffName || '') : (old[k] || ''));
+    wrap.append(lab, inp); host.appendChild(wrap);
+  });
+  tplLastId = t.id;
+}
+function tplGenerate(){
+  const t = tplCurrent();
+  if(!t){ setEmailOutput('Open Settings to add a template first.'); return; }
+  const vals = {}; wsEl('tplBlanks').querySelectorAll('input').forEach(i => vals[i.dataset.k] = i.value.trim());
+  const pr = pronounSet(wsEl('tplPronoun').value);
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const html = clientSanitize(t.html).replace(/\{([^{}]+)\}/g, (m, k) => {
+    const low = k.toLowerCase();
+    if(k === 'center') return esc(CENTER_INFO[selectedCenterId()].name);
+    if(TPL_PRONOUN[low]){ const w = pr[TPL_PRONOUN[low]]; return esc(k.charAt(0) === k.charAt(0).toUpperCase() && k.charAt(0) !== k.charAt(0).toLowerCase() ? w.charAt(0).toUpperCase() + w.slice(1) : w); }
+    return vals[k] ? esc(vals[k]) : '[FILL IN: ' + esc(k) + ']';
+  });
+  wsEl('emailHeaderOut').value = t.name;
+  wsEl('emailOut').innerHTML = html;
+}
+
+wsEl('wsSignInBtn').addEventListener('click', wsDoSignIn);
+['wsCenter','wsPassword'].forEach(id => wsEl(id).addEventListener('keydown', e => { if(e.key === 'Enter') wsDoSignIn(); }));
+wsEl('wsToCreate').addEventListener('click', () => wsShow('wsCreate'));
+wsEl('wsBackSignin').addEventListener('click', () => wsShow('wsSignin'));
+wsEl('wsCreateBtn').addEventListener('click', wsDoCreate);
+wsEl('wsChangeBtn').addEventListener('click', wsDoChange);
+wsEl('wsOffline').addEventListener('click', () => { ws.offline = true; wsEl('wsGate').classList.remove('open'); });
+wsEl('wsSignOutLink').addEventListener('click', wsSignOut);
+wsEl('wsPanelSignOut').addEventListener('click', wsSignOut);
+wsEl('wsPanelClose').addEventListener('click', wsClosePanel);
+wsEl('wsPanelBack').addEventListener('click', wsClosePanel);
+wsEl('wsSaveCenter').addEventListener('click', wsSaveCenter);
+wsEl('wsChangePw').addEventListener('click', wsPanelChangePw);
+wsEl('wsAddTpl').addEventListener('click', () => tplOpenEditor(null));
+wsEl('tplEdSave').addEventListener('click', tplSaveEditor);
+wsEl('tplEdCancel').addEventListener('click', () => wsEl('tplEditModal').classList.remove('open'));
+wsEl('tplPick').addEventListener('change', tplRenderBlanks);
+wsEl('tplEdToolbar').querySelectorAll('button').forEach(b => {
+  b.addEventListener('mousedown', e => e.preventDefault());
+  b.addEventListener('click', () => {
+    wsEl('tplEdBody').focus();
+    if(b.dataset.cmd === 'createLink'){ const u = window.prompt('Link address (starts with https://)'); if(u && /^(https?:|mailto:)/i.test(u)) document.execCommand('createLink', false, u); return; }
+    document.execCommand(b.dataset.cmd, false, null);
+  });
+});
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  if(wsEl('tplEditModal').classList.contains('open')) wsEl('tplEditModal').classList.remove('open');
+  else if(wsEl('wsPanel').classList.contains('open')) wsClosePanel();
+});
+// When signed in, the Settings button opens the side panel instead of the local settings window.
+wsEl('setOpen').addEventListener('click', e => { if(ws.center){ e.stopImmediatePropagation(); wsOpenPanel(); } }, true);
+wsInit();
+
 /* Apply feature flags: hide any in-progress mode's radio option entirely
    (not just disable it - staff shouldn't see it exists at all) unless
    enabled by FEATURE_FLAGS or this visit's ?preview= override. */
@@ -5467,6 +5923,10 @@ function setEmailOutput(plainText, chartMap){
 
 document.getElementById('genBtn').addEventListener('click', async ()=>{
   const mode = document.querySelector('input[name="emailMode"]:checked').value;
+  if(mode === 'tpl'){
+    tplGenerate();
+    return;
+  }
   if(mode === 'sotm'){
     document.getElementById('emailHeaderOut').value = buildSotmEmailHeader();
     setEmailOutput(buildSotmEmail());
@@ -5796,7 +6256,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-k';
+const APP_VERSION = '2026.11.05-a';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
