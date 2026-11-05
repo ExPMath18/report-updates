@@ -8,7 +8,7 @@ The top of `index.html` has a file map, and the start of the script has a script
 ## What this is
 A staff tool for Exponential Potential Mathnasium centers (MEV in East Vancouver, WL in West Linn). Staff upload PDF reports exported from Radius, the tool reads them, and it drafts a parent email.
 
-- Email types: Progress Update, Risk-Free Assessment (RFA), Exit Summary (hidden behind a feature flag), and sibling versions of each.
+- Email types: Progress Update, Risk-Free Assessment (RFA), Student of the Month (hand-entered, Nominated or Winner), Exit Summary (hidden behind a feature flag), and sibling versions of the PDF-based ones.
 - One static file: `index.html` (HTML, CSS and JavaScript together). No backend, no build step.
 - PDFs are read in the browser with pdf.js from a CDN. Nothing is uploaded anywhere.
 - Hosted on GitHub Pages from the `main` branch.
