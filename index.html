@@ -4603,9 +4603,19 @@ const DEFAULT_SETTINGS = {
     {id:'MEV', label:'East Vancouver', name:'Mathnasium of East Vancouver', scheduling:true,  learningPlan:true, homework:false, sotm:true},
     {id:'WL',  label:'West Linn',      name:'Mathnasium of West Linn',      scheduling:false, learningPlan:true, homework:false, sotm:false}
   ],
-  lastCenter: 'WL'
+  lastCenter: 'MEV'
 };
 let settings = loadSettings();
+/* A link like ...index.html?center=MEV opens on that center and remembers it.
+   It still works if the browser has forgotten the saved settings. */
+(function(){
+  try{
+    const want = (new URLSearchParams(location.search).get('center')||'').trim().toLowerCase();
+    if(!want) return;
+    const hit = settings.centers.find(c=>c.id.toLowerCase()===want || c.label.toLowerCase()===want);
+    if(hit){ settings.lastCenter = hit.id; }
+  }catch(e){}
+})();
 function cloneSettings(x){ return JSON.parse(JSON.stringify(x)); }
 function cleanSettings(x){
   const out = {staffName:'', centers:[], lastCenter:''};
@@ -4707,6 +4717,7 @@ function applyStaffDefault(){
 }
 rebuildCenterInfo();
 renderCenterToggle(settings.lastCenter);
+saveSettings();
 applyCenterDefaults();
 applyStaffDefault();
 updateSettingsLabel();
@@ -5785,7 +5796,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-j';
+const APP_VERSION = '2026.11.04-k';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
@@ -5820,6 +5831,13 @@ const BUG_REPORT_TOKEN = 'banapples';
     return out;
   }
   function val(id){ const e=$(id); return e ? e.value : ''; }
+  function storageCheck(){
+    const out = {canWrite:false, hasSavedSettings:false, savedLastCenter:null, activeCenter:null};
+    try{ localStorage.setItem('_t','1'); localStorage.removeItem('_t'); out.canWrite = true; }catch(e){ out.error = String(e.message||e); }
+    try{ const raw = localStorage.getItem('emailBuilderSettings.v1'); out.hasSavedSettings = !!raw; if(raw) out.savedLastCenter = JSON.parse(raw).lastCenter; }catch(e){}
+    try{ out.activeCenter = selectedCenterId(); }catch(e){}
+    return out;
+  }
   function diagnostics(){
     let ds = null, extras = null;
     try{ ds = typeof dataset!=='undefined' ? dataset : null; }catch(e){}
@@ -5833,6 +5851,7 @@ const BUG_REPORT_TOKEN = 'banapples';
       dataset: ds, extraCharts: extras,
       emailOutput: ($('emailOut')||{}).innerText || '',
       settings: (typeof settings!=='undefined' ? settings : null),
+      storage: storageCheck(),
       errors: errLog.slice()
     };
   }

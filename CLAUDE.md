@@ -53,6 +53,7 @@ Known limits:
 - Settings are saved in the browser (`localStorage`, key `emailBuilderSettings.v1`), per device.
 - `settings.centers` holds each center's short name, full name, and default checkboxes (scheduling, Learning Plan, homework). MEV and WL are the seeded defaults.
 - `CENTER_INFO` is rebuilt from settings and read by the email generators. The center is chosen in Settings. A hidden radio group `name="emailCenter"` still carries the active center, because many functions read it. Do not remove it without updating them.
+- A link ending in `?center=MEV` (or `?center=WL`) opens on that center and remembers it, even if the browser lost its saved settings. Brand-new devices start on MEV. Bug reports include a `storage` diagnostic (can the browser save, what center was saved).
 - The only place the full center name shows up in an email is the drop-in line when scheduling is off.
 
 ## Student of the Month nominations
