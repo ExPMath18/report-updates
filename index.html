@@ -293,6 +293,11 @@
   #wsPanel.open{transform:none;}
   #wsPanel h2{margin:0;font-size:20px;}
   #wsPanel h3{margin:22px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:14px;}
+  .tpl-seg{display:flex;margin:0 0 10px;max-width:460px;}
+  .tpl-seg button{flex:1;padding:9px 10px;border:1px solid var(--line);background:#fff;font:inherit;font-size:14px;cursor:pointer;margin-left:-1px;}
+  .tpl-seg button:first-child{border-radius:6px 0 0 6px;margin-left:0;}
+  .tpl-seg button:last-child{border-radius:0 6px 6px 0;}
+  .tpl-seg button.on{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;position:relative;}
   .ws-chk{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-top:8px;}
   .tpl-row{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
   .tpl-row .nm{flex:1;min-width:0;}
@@ -5198,7 +5203,7 @@ function tplExpand(html, picks){
   return out + s.slice(pos);
 }
 function tplPicks(){
-  const picks = {}; wsEl('tplBlanks').querySelectorAll('select').forEach(sel => picks[sel.dataset.k.slice(7)] = sel.value);
+  const picks = {}; wsEl('tplBlanks').querySelectorAll('[data-pick]').forEach(el => picks[el.dataset.k.slice(7)] = el.dataset.pick);
   return picks;
 }
 function tplBlanksOf(html){
@@ -5227,20 +5232,33 @@ function tplRender(){
 }
 function tplRenderBlanks(){
   const t = tplCurrent(), host = wsEl('tplBlanks');
-  const old = {}; host.querySelectorAll('input,select').forEach(i => old[i.dataset.k] = i.value);
+  const old = {}; host.querySelectorAll('input').forEach(i => old[i.dataset.k] = i.value); host.querySelectorAll('[data-pick]').forEach(el => old[el.dataset.k] = el.dataset.pick);
   host.innerHTML = '';
   if(!t){ wsEl('tplPronounWrap').style.display = 'none'; return; }
   const picks = {};
   tplChoices(t.html).forEach(c => {
     const wrap = document.createElement('div');
     const lab = document.createElement('label'); lab.className = 'ws-lbl'; lab.textContent = c.label; lab.style.marginTop = '8px';
-    const sel = document.createElement('select'); sel.className = 'ws-field'; sel.dataset.k = 'choose:' + c.label;
-    c.options.forEach(o => { const op = document.createElement('option'); op.value = o.name; op.textContent = o.name; sel.appendChild(op); });
     const prev = old['choose:' + c.label];
-    if(t.id === tplLastId && prev && c.options.some(o => o.name === prev)) sel.value = prev;
-    picks[c.label] = sel.value;
-    sel.addEventListener('change', tplRenderBlanks);
-    wrap.append(lab, sel); host.appendChild(wrap);
+    const start = (t.id === tplLastId && prev && c.options.some(o => o.name === prev)) ? prev : c.options[0].name;
+    picks[c.label] = start;
+    let ctl;
+    if(c.options.length <= 3){   // two or three options: click toggle
+      ctl = document.createElement('div'); ctl.className = 'tpl-seg'; ctl.setAttribute('role', 'group'); ctl.setAttribute('aria-label', c.label);
+      c.options.forEach(o => {
+        const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = o.name;
+        btn.className = o.name === start ? 'on' : ''; btn.setAttribute('aria-pressed', String(o.name === start));
+        btn.addEventListener('click', () => { ctl.dataset.pick = o.name; tplRenderBlanks(); });
+        ctl.appendChild(btn);
+      });
+    }else{                        // more than three: dropdown
+      ctl = document.createElement('select'); ctl.className = 'ws-field';
+      c.options.forEach(o => { const op = document.createElement('option'); op.value = o.name; op.textContent = o.name; ctl.appendChild(op); });
+      ctl.value = start;
+      ctl.addEventListener('change', () => { ctl.dataset.pick = ctl.value; tplRenderBlanks(); });
+    }
+    ctl.dataset.k = 'choose:' + c.label; ctl.dataset.pick = start;
+    wrap.append(lab, ctl); host.appendChild(wrap);
   });
   const keys = tplBlanksOf(tplExpand(t.html, picks));
   wsEl('tplPronounWrap').style.display = keys.some(k => TPL_PRONOUN[k.toLowerCase()]) ? '' : 'none';
@@ -6306,7 +6324,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.05-c';
+const APP_VERSION = '2026.11.05-d';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
