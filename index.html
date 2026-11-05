@@ -275,6 +275,15 @@
   .btn-ghost:hover{border-color:var(--ink-soft);}
   .btn-sm{padding:5px 10px;font-size:12px;border-radius:5px;}
   .btn-row{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap;}
+  /* center chooser shown when the page opens */
+  #centerGate{position:fixed;inset:0;background:#fff;z-index:3000;display:none;align-items:center;justify-content:center;padding:24px;}
+  #centerGate.open{display:flex;}
+  #centerGate .gbox{max-width:460px;width:100%;text-align:center;}
+  #centerGate h2{font-size:26px;margin:0 0 6px;}
+  #centerGate p{color:var(--ink-soft);margin:0 0 20px;}
+  #gateButtons{display:flex;flex-direction:column;gap:12px;}
+  #gateButtons button{font-size:18px;padding:16px;border-radius:8px;border:0;background:var(--red);color:#fff;font-weight:700;cursor:pointer;}
+  #gateButtons button:hover{background:var(--maroon);}
   /* Student of the Month nominations + raffle wheel */
   .nom-box{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;background:#fafafa;}
   .nom-box h3{margin:0 0 4px;font-size:15px;}
@@ -561,7 +570,7 @@
     <div class="wordmark">MATHNASIUM<span class="sub">Exponential Potential · Staff Tool</span></div>
     <h1>Email Builder</h1>
     <p>Upload Radius assessment-chart PDFs, review the results, and draft a parent email.</p>
-    <button type="button" class="report-link" id="setOpen">Settings</button> <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
+    <button type="button" class="report-link" id="setOpen">Settings</button> <button type="button" class="report-link" id="centerSwitch">Switch center</button> <button type="button" class="report-link" id="bugOpen">Report a problem</button><span class="app-version" id="appVersion"></span>
   </div>
 </header>
 
@@ -975,6 +984,15 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
   <div class="footer-note">Built for Exponential Potential Mathnasiums. Runs entirely in your browser, nothing is uploaded anywhere.</div>
 </div>
 
+
+<div id="centerGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="gbox">
+    <h2 id="gateTitle">Which center are you at?</h2>
+    <p>This sets the center name and defaults in your emails.</p>
+    <div id="gateButtons"></div>
+    <div class="btn-row" style="justify-content:center;"><button type="button" class="btn btn-ghost btn-sm" id="gateCancel" style="display:none;">Cancel</button></div>
+  </div>
+</div>
 
 <div id="wheelModal" role="dialog" aria-modal="true" aria-labelledby="wheelTitle">
   <div class="wbox">
@@ -4606,6 +4624,7 @@ const DEFAULT_SETTINGS = {
   lastCenter: 'MEV'
 };
 let settings = loadSettings();
+let centerFromLink = ''; // set when the page was opened with ?center=...
 /* A link like ...index.html?center=MEV opens on that center and remembers it.
    It still works if the browser has forgotten the saved settings. */
 (function(){
@@ -4613,7 +4632,7 @@ let settings = loadSettings();
     const want = (new URLSearchParams(location.search).get('center')||'').trim().toLowerCase();
     if(!want) return;
     const hit = settings.centers.find(c=>c.id.toLowerCase()===want || c.label.toLowerCase()===want);
-    if(hit){ settings.lastCenter = hit.id; }
+    if(hit){ settings.lastCenter = hit.id; centerFromLink = hit.id; }
   }catch(e){}
 })();
 function cloneSettings(x){ return JSON.parse(JSON.stringify(x)); }
@@ -4701,8 +4720,8 @@ document.getElementById('emailCenterToggle').addEventListener('change', ()=>{
   document.querySelectorAll('#emailCenterToggle label').forEach(l=>{
     l.classList.toggle('active', l.querySelector('input').checked);
   });
-  settings.lastCenter = value; saveSettings();
   applyCenterDefaults();
+  updateSettingsLabel();
 });
 function updateSettingsLabel(){
   const c = settings.centers.find(x=>x.id===selectedCenterId());
@@ -4716,11 +4735,36 @@ function applyStaffDefault(){
   if(sf && !sf.value && settings.staffName) sf.value = settings.staffName;
 }
 rebuildCenterInfo();
-renderCenterToggle(settings.lastCenter);
-saveSettings();
+renderCenterToggle(centerFromLink || settings.centers[0].id); // placeholder until the person picks a center
 applyCenterDefaults();
 applyStaffDefault();
 updateSettingsLabel();
+
+/* ---------------------------------------------------------
+   CENTER CHOOSER
+   Nothing is remembered between visits. Staff pick their center when the page
+   opens (or open it with ?center=MEV to skip this screen).
+--------------------------------------------------------- */
+let centerChosen = !!centerFromLink;
+function showCenterGate(){
+  const gate = document.getElementById('centerGate'), host = document.getElementById('gateButtons');
+  host.innerHTML = '';
+  settings.centers.forEach(c=>{
+    const b = document.createElement('button'); b.type='button'; b.textContent = c.label;
+    b.addEventListener('click', ()=>{
+      const r = document.querySelector('#emailCenterToggle input[value="'+c.id.replace(/"/g,'')+'"]');
+      if(r){ r.checked = true; document.getElementById('emailCenterToggle').dispatchEvent(new Event('change',{bubbles:true})); }
+      centerChosen = true; gate.classList.remove('open');
+    });
+    host.appendChild(b);
+  });
+  document.getElementById('gateCancel').style.display = centerChosen ? '' : 'none';
+  gate.classList.add('open');
+  const first = host.querySelector('button'); if(first) first.focus();
+}
+document.getElementById('gateCancel').addEventListener('click', ()=>document.getElementById('centerGate').classList.remove('open'));
+document.getElementById('centerSwitch').addEventListener('click', showCenterGate);
+if(!centerChosen) showCenterGate();
 
 (function(){
   const $ = id => document.getElementById(id);
@@ -4790,7 +4834,7 @@ updateSettingsLabel();
     readDraftFromDom();
     const bad = draft.centers.findIndex(c=>!c.label.trim() || !c.name.trim());
     if(bad>=0){ cur = bad; renderDraft(); setMsg('Each center needs a short name and a full name.', true); return; }
-    const keep = draft.centers[cur].id;
+    const keep = selectedCenterId();
     settings = cleanSettings(draft);
     settings.lastCenter = settings.centers.some(c=>c.id===keep) ? keep : settings.centers[0].id;
     saveSettings(); rebuildCenterInfo(); renderCenterToggle(settings.lastCenter);
@@ -5796,7 +5840,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-k';
+const APP_VERSION = '2026.11.04-l';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
@@ -5852,6 +5896,7 @@ const BUG_REPORT_TOKEN = 'banapples';
       emailOutput: ($('emailOut')||{}).innerText || '',
       settings: (typeof settings!=='undefined' ? settings : null),
       storage: storageCheck(),
+      centerChosen: (typeof centerChosen!=='undefined' ? centerChosen : null),
       errors: errLog.slice()
     };
   }

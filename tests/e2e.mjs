@@ -38,7 +38,7 @@ export async function openApp(){
     }
     return route.fulfill({status: 200, body: ''});
   });
-  await page.goto(`http://localhost:${port}/`);
+  await page.goto(`http://localhost:${port}/?center=WL`); // ?center skips the center chooser
   return { page, errors, close: async () => { await browser.close(); server.close(); } };
 }
 
