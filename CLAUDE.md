@@ -56,6 +56,8 @@ Each center signs in with its own password. Its settings and email templates liv
 - The signed-in center and password are remembered in `localStorage` (`emailBuilderLogin.v1`). Passwords and the setup code are never in this repo.
 - Signed in, the Settings button opens a side panel (center settings, template list with up/down/edit/hide/delete, change password). The old per-device Settings window only appears when the page is offline or `WORKSPACE_URL` is empty.
 - Templates mode: staff pick a template, the page builds a form from every `{blank}` in it, and Generate fills the email box. `{sender}` and `{center}` fill in automatically. Unfilled blanks show as `[FILL IN: name]`. Pronoun blanks (`{he/she}`, `{his/her}`, `{him/her}`) come from one pronoun picker.
+- Each center also has an address, phone and booking link in its settings. Templates use `{address}`, `{phone}` and `{booking link}`, which fill in automatically. If the center has not set one, the page asks for it like any other blank. Do not hard-code a center's address, phone or booking link into a template.
+- Templates are stored in the owner's private Sheet, never in this repo. The Standard tab is what new centers copy. Some templates are center-only (for example West Linn's referral program).
 - Template HTML is cleaned to simple formatting on the server and again in the page (`clientSanitize`).
 - Templates hold no student data. Never put real student or parent details in a template.
 - If the workspace cannot be reached, "Continue without signing in" falls back to the settings saved on the device. The PDF email builders never depend on the workspace.
