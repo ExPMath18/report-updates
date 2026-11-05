@@ -1112,7 +1112,7 @@ Integer Subtraction/Multiplication and Division with Two Numbers"></textarea>
       <button type="button" class="email-tb-btn" data-cmd="createLink" title="Link">Link</button>
     </div>
     <div id="tplEdBody" contenteditable="true"></div>
-    <p class="desc" style="font-size:12.5px;margin:6px 0 0;">Put details that change in curly braces, like {student}, {parent} or {date}. The page asks for each one when someone uses the template. {sender}, {center}, {address}, {phone} and {booking link} fill in automatically from your center settings.</p>
+    <p class="desc" style="font-size:12.5px;margin:6px 0 0;">Put details that change in curly braces, like {student}, {parent} or {date}. The page asks for each one when someone uses the template. {sender}, {center}, {address}, {phone} and {booking link} fill in automatically from your center settings. To offer a choice, write {choose Label: Option one = text | Option two = text}.</p>
     <div class="ws-msg" id="tplEdMsg"></div>
     <div class="btn-row" style="margin-top:6px;"><button class="btn-primary" type="button" id="tplEdSave">Save template</button> <button class="btn-ghost" type="button" id="tplEdCancel">Cancel</button></div>
   </div>
@@ -5175,6 +5175,32 @@ function clientSanitize(html){
 
 /* ----- Templates mode ----- */
 const TPL_PRONOUN = {'he/she':'subj', 'his/her':'poss', 'him/her':'obj'};
+/* Choice blocks let one template cover a few versions: {choose Label: Name = text | Name = text}.
+   Staff get a dropdown, and only the picked text goes into the email. The text can hold other {blanks}. */
+function tplChoices(html){
+  const s = String(html), out = []; let i = 0;
+  while((i = s.indexOf('{choose ', i)) >= 0){
+    let depth = 0, j = i;
+    for(; j < s.length; j++){ if(s[j] === '{') depth++; else if(s[j] === '}'){ depth--; if(!depth) break; } }
+    if(j >= s.length) break;
+    const body = s.slice(i + 8, j), c = body.indexOf(':');
+    if(c > 0){
+      const options = body.slice(c + 1).split('|').map(o => { const e = o.indexOf('='); return e > 0 ? {name:o.slice(0, e).trim(), text:o.slice(e + 1).trim()} : {name:o.trim(), text:o.trim()}; }).filter(o => o.name);
+      if(options.length) out.push({label:body.slice(0, c).trim(), options:options, start:i, end:j + 1});
+    }
+    i = j + 1;
+  }
+  return out;
+}
+function tplExpand(html, picks){
+  const s = String(html); let out = '', pos = 0;
+  tplChoices(s).forEach(c => { out += s.slice(pos, c.start); out += (c.options.find(o => o.name === picks[c.label]) || c.options[0]).text; pos = c.end; });
+  return out + s.slice(pos);
+}
+function tplPicks(){
+  const picks = {}; wsEl('tplBlanks').querySelectorAll('select').forEach(sel => picks[sel.dataset.k.slice(7)] = sel.value);
+  return picks;
+}
 function tplBlanksOf(html){
   const out = []; String(html).replace(/\{([^{}]+)\}/g, (m, k) => { if(out.indexOf(k) < 0) out.push(k); return m; });
   return out;
@@ -5201,10 +5227,22 @@ function tplRender(){
 }
 function tplRenderBlanks(){
   const t = tplCurrent(), host = wsEl('tplBlanks');
-  const old = {}; host.querySelectorAll('input').forEach(i => old[i.dataset.k] = i.value);
+  const old = {}; host.querySelectorAll('input,select').forEach(i => old[i.dataset.k] = i.value);
   host.innerHTML = '';
   if(!t){ wsEl('tplPronounWrap').style.display = 'none'; return; }
-  const keys = tplBlanksOf(t.html);
+  const picks = {};
+  tplChoices(t.html).forEach(c => {
+    const wrap = document.createElement('div');
+    const lab = document.createElement('label'); lab.className = 'ws-lbl'; lab.textContent = c.label; lab.style.marginTop = '8px';
+    const sel = document.createElement('select'); sel.className = 'ws-field'; sel.dataset.k = 'choose:' + c.label;
+    c.options.forEach(o => { const op = document.createElement('option'); op.value = o.name; op.textContent = o.name; sel.appendChild(op); });
+    const prev = old['choose:' + c.label];
+    if(t.id === tplLastId && prev && c.options.some(o => o.name === prev)) sel.value = prev;
+    picks[c.label] = sel.value;
+    sel.addEventListener('change', tplRenderBlanks);
+    wrap.append(lab, sel); host.appendChild(wrap);
+  });
+  const keys = tplBlanksOf(tplExpand(t.html, picks));
   wsEl('tplPronounWrap').style.display = keys.some(k => TPL_PRONOUN[k.toLowerCase()]) ? '' : 'none';
   keys.forEach(k => {
     if(k === 'center' || TPL_PRONOUN[k.toLowerCase()] || tplCenterValue(k)) return;
@@ -5222,7 +5260,7 @@ function tplGenerate(){
   const vals = {}; wsEl('tplBlanks').querySelectorAll('input').forEach(i => vals[i.dataset.k] = i.value.trim());
   const pr = pronounSet(wsEl('tplPronoun').value);
   const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const html = clientSanitize(t.html).replace(/\{([^{}]+)\}/g, (m, k) => {
+  const html = clientSanitize(tplExpand(t.html, tplPicks())).replace(/\{([^{}]+)\}/g, (m, k) => {
     const low = k.toLowerCase();
     if(k === 'center') return esc(CENTER_INFO[selectedCenterId()].name);
     if(tplCenterValue(k)) return esc(tplCenterValue(k));
@@ -6268,7 +6306,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.05-b';
+const APP_VERSION = '2026.11.05-c';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
