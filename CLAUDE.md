@@ -19,7 +19,7 @@ A staff tool for Exponential Potential Mathnasium centers (MEV in East Vancouver
 3. **Never paste code into GitHub's web editor.** It has corrupted this file before. Upload the whole file instead, or use git.
 4. **Wait for the green check** on the Pages build before uploading again. Back-to-back uploads cancel each other.
 5. **Keep it simple.** The owner wants a clear, low-clutter design. Do not add options or screens unless asked.
-6. The bug-report URL and token near `APP_VERSION` point at the owner's Apps Script. Leave them alone. `BugReport_Code.gs` in this repo is a template with the token removed.
+6. The bug-report URL and token near `APP_VERSION` point at the owner's Apps Script. Leave them alone. The Apps Script for bug reports lives outside this repo.
 
 ## Voice (parent-facing text)
 - Warm, positive and direct. One Mathnasium voice for every center. No per-center wording.
@@ -54,6 +54,14 @@ Known limits:
 - `settings.centers` holds each center's short name, full name, and default checkboxes (scheduling, Learning Plan, homework). MEV and WL are the seeded defaults.
 - `CENTER_INFO` is rebuilt from settings and read by the email generators. The center is chosen in Settings. A hidden radio group `name="emailCenter"` still carries the active center, because many functions read it. Do not remove it without updating them.
 - The only place the full center name shows up in an email is the drop-in line when scheduling is off.
+
+## Student of the Month nominations
+Staff submit nominations in a Google Form. In SotM mode the page loads them, runs a raffle wheel and fills the email fields.
+- Data comes from an Apps Script web app bound to the form's response sheet (`SOTM_URL` constant, empty until deployed). The script lives outside this repo. The page POSTs `text/plain` JSON: `{action:'list'|'clear', password, month:'YYYY-MM'}`. Replies are `{ok:true, rows:[...]}` or `{ok:false, error}`. A CSV upload is the fallback.
+- The password is a Script Property in the owner's script. It is typed into the page and kept in `sessionStorage` only. Never put it, or any student name, in this repo.
+- Loaded rows and winners live in memory and `sessionStorage`. "Clear from this page" wipes them. "Delete this month's submissions" removes them from the sheet and form (needs password and typing DELETE).
+- One raffle entry per nominated student. Winners use the Winner template, everyone else the Nominated template. The winner count defaults to 3 (an assumption, editable on the page).
+- Parent name and pronoun are not on the form, so they stay manual.
 
 ## Bug reports
 "Report a problem" posts JSON to a Google Apps Script web app, which emails the owner the description, center, screenshot (html2canvas, loaded on demand), uploaded PDFs and diagnostics. It uses `mode: 'no-cors'`, so the page cannot read the reply. If no URL is set, it downloads a report file instead.
