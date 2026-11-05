@@ -49,10 +49,23 @@ Known limits:
 - A category whose total is a sum of a base level and its Extension (Geometry, for example) cannot be assigned to one assessment, so its topics stay with the main assessment.
 - Radius prints only about 3 example topics per category on a 0% report, so topic lookup tables are partial. The category totals in `ASSESSMENT_TOPIC_REFERENCE` are exact.
 
-## Settings and centers
+## Workspace: sign-in, settings and email templates
+Each center signs in with its own password. Its settings and email templates live in a Google Sheet behind an Apps Script web app (`WORKSPACE_URL` constant). The script lives outside this repo.
+- The page POSTs `text/plain` JSON `{action, center, password, ...}`. Actions: `login`, `saveSettings`, `saveTemplate`, `deleteTemplate`, `reorder`, `changePassword`, and `createCenter` (needs a setup code). Replies are `{ok:true, ...}` or `{ok:false, error}`.
+- New centers start with the shared standard templates and a starting password. They must choose their own password on first sign-in. Five wrong tries locks a center for 15 minutes.
+- The signed-in center and password are remembered in `localStorage` (`emailBuilderLogin.v1`). Passwords and the setup code are never in this repo.
+- Signed in, the Settings button opens a side panel (center settings, template list with up/down/edit/hide/delete, change password). The old per-device Settings window only appears when the page is offline or `WORKSPACE_URL` is empty.
+- Templates mode: staff pick a template, the page builds a form from every `{blank}` in it, and Generate fills the email box. `{sender}` and `{center}` fill in automatically. Unfilled blanks show as `[FILL IN: name]`. Pronoun blanks (`{he/she}`, `{his/her}`, `{him/her}`) come from one pronoun picker.
+- Template HTML is cleaned to simple formatting on the server and again in the page (`clientSanitize`).
+- Templates hold no student data. Never put real student or parent details in a template.
+- If the workspace cannot be reached, "Continue without signing in" falls back to the settings saved on the device. The PDF email builders never depend on the workspace.
+- Student of the Month nominations are separate (see below) and use their own password.
+
+## Settings and centers (device settings, used when offline)
 - Settings are saved in the browser (`localStorage`, key `emailBuilderSettings.v1`), per device.
 - `settings.centers` holds each center's short name, full name, and default checkboxes (scheduling, Learning Plan, homework). MEV and WL are the seeded defaults.
 - `CENTER_INFO` is rebuilt from settings and read by the email generators. The center is chosen in Settings. A hidden radio group `name="emailCenter"` still carries the active center, because many functions read it. Do not remove it without updating them.
+- A link ending in `?center=MEV` (or `?center=WL`) opens on that center and remembers it, even if the browser lost its saved settings. Brand-new devices start on MEV. Bug reports include a `storage` diagnostic (can the browser save, what center was saved).
 - The only place the full center name shows up in an email is the drop-in line when scheduling is off.
 
 ## Student of the Month nominations
