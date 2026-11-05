@@ -590,7 +590,7 @@
       <p><strong>Order in the email:</strong> assessments are walked through as Numerical Fluency Add/Sub, Numerical Fluency Mult/Div, Computation, the grade-level assessment, then Extensions. This happens automatically, no matter what order you upload the PDFs.</p>
       <p><strong>Student of the Month</strong>: at the start of the month, enter the nominations password and click <strong>Load nominations</strong> (or load the response sheet as a CSV). Pick who is in the draw, spin the wheel, then use <strong>Write email</strong> on each nominee. Add the parent name and pronoun, edit the instructor notes so they read well for a parent, and copy. When you are finished, use <strong>Delete this month's submissions</strong> so the names do not sit in the sheet.</p>
       <p><strong>Sibling mode</strong> (top of the page): run each sibling through their own tab, then generate one combined email covering all of them.</p>
-      <p><strong>Your center</strong> is chosen in <strong>Settings</strong>, and the Settings button shows which one is active. It sets the center name in the email and which extras start checked (myMathnasium scheduling, Learning Plan, homework policy). Emails sign off with "Best," and your name, so the rest of your signature comes from Gmail when you paste.</p>
+      <p><strong>Your center</strong> is chosen in <strong>Settings</strong>, and the Settings button shows which one is active. It sets the center name in the email and which extras start checked (myMathnasium scheduling, Learning Plan, homework policy), and whether the Student of the Month button shows. Emails sign off with "Best," and your name, so the rest of your signature comes from Gmail when you paste.</p>
       <p><strong>Settings</strong> (top of the page): pick your center, set your default sender name, and add or edit centers and their defaults. Settings save on this device.</p>
       <p style="margin-bottom:0;"><strong>Report a problem</strong> (top of the page): if something looks wrong, describe it and send. The report includes a screenshot, the PDFs you uploaded, and the details needed to fix it. Both are on by default, and you can turn either one off.</p>
     </div>
@@ -4600,8 +4600,8 @@ const SETTINGS_KEY = 'emailBuilderSettings.v1';
 const DEFAULT_SETTINGS = {
   staffName: '',
   centers: [
-    {id:'MEV', label:'East Vancouver', name:'Mathnasium of East Vancouver', scheduling:true,  learningPlan:true, homework:false},
-    {id:'WL',  label:'West Linn',      name:'Mathnasium of West Linn',      scheduling:false, learningPlan:true, homework:false}
+    {id:'MEV', label:'East Vancouver', name:'Mathnasium of East Vancouver', scheduling:true,  learningPlan:true, homework:false, sotm:true},
+    {id:'WL',  label:'West Linn',      name:'Mathnasium of West Linn',      scheduling:false, learningPlan:true, homework:false, sotm:false}
   ],
   lastCenter: 'WL'
 };
@@ -4619,7 +4619,9 @@ function cleanSettings(x){
       out.centers.push({
         id: String(c.id||('C'+(i+1))).replace(/[^A-Za-z0-9_-]/g,'').slice(0,20) || ('C'+(i+1)),
         label: label || name, name: name || label,
-        scheduling: !!c.scheduling, learningPlan: !!c.learningPlan, homework: !!c.homework
+        scheduling: !!c.scheduling, learningPlan: !!c.learningPlan, homework: !!c.homework,
+        // older saved settings have no sotm value: MEV keeps it, everyone else starts with it off
+        sotm: (c.sotm === undefined) ? (String(c.id||'') === 'MEV') : !!c.sotm
       });
     });
     out.lastCenter = String(x.lastCenter||'');
@@ -4673,6 +4675,16 @@ function applyCenterDefaults(){
   document.getElementById('rfaScheduling').checked = c.scheduling;
   document.getElementById('rfaLearningPlan').checked = c.learningPlan;
   document.getElementById('rfaHomework').checked = c.homework;
+  applySotmAvailability(c);
+}
+/* Student of the Month is a per-center setting. When it is off, the mode button is hidden. */
+function applySotmAvailability(c){
+  const on = !!c.sotm;
+  document.getElementById('modeLabelSotm').style.display = on ? '' : 'none';
+  if(!on && document.querySelector('input[name="emailMode"]:checked').value === 'sotm'){
+    document.getElementById('modeLabelProgress').querySelector('input').checked = true;
+    applyEmailModeVisibility();
+  }
 }
 document.getElementById('emailCenterToggle').addEventListener('change', ()=>{
   const value = selectedCenterId();
@@ -4704,7 +4716,7 @@ updateSettingsLabel();
   const modal = $('setModal'), msg = $('setMsg');
   let draft = null, cur = 0;
   const setMsg = (t, err) => { msg.textContent = t; msg.className = err ? 'err' : ''; };
-  const FLAGS = ['scheduling','learningPlan','homework'];
+  const FLAGS = ['scheduling','learningPlan','homework','sotm'];
   function readDraftFromDom(){
     draft.staffName = $('setStaff').value.trim();
     const card = document.querySelector('#setCenters .centerCard');
@@ -4736,6 +4748,7 @@ updateSettingsLabel();
       '<label class="chk"><input type="checkbox" data-f="scheduling"><span>We handle scheduling through myMathnasium</span></label>'+
       '<label class="chk"><input type="checkbox" data-f="learningPlan"><span>We send a Learning Plan document</span></label>'+
       '<label class="chk"><input type="checkbox" data-f="homework"><span>Include homework policy explanation</span></label>'+
+      '<label class="chk"><input type="checkbox" data-f="sotm"><span>We run Student of the Month</span></label>'+
       '<div class="btn-row" style="margin-top:10px;"><button type="button" class="btn-ghost btn-sm" data-rm="1">Remove this center</button></div>';
     card.querySelector('[data-f=label]').value = c.label;
     card.querySelector('[data-f=name]').value = c.name;
@@ -4758,7 +4771,7 @@ updateSettingsLabel();
   $('setAdd').addEventListener('click', ()=>{
     readDraftFromDom();
     if(draft.centers.length>=12) return;
-    draft.centers.push({id:'C'+Date.now().toString(36), label:'', name:'Mathnasium of ', scheduling:true, learningPlan:true, homework:false});
+    draft.centers.push({id:'C'+Date.now().toString(36), label:'', name:'Mathnasium of ', scheduling:true, learningPlan:true, homework:false, sotm:false});
     cur = draft.centers.length-1; renderDraft();
     const f = document.querySelector('#setCenters [data-f=label]'); if(f) f.focus();
   });
@@ -5772,7 +5785,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.04-h';
+const APP_VERSION = '2026.11.04-i';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
