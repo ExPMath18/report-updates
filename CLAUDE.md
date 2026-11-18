@@ -64,6 +64,14 @@ Each center signs in with its own password. Its settings and email templates liv
 - If the workspace cannot be reached, "Continue without signing in" falls back to the settings saved on the device. The PDF email builders never depend on the workspace.
 - Student of the Month nominations are separate (see below) and use their own password.
 
+## Gmail side panel (Chrome extension)
+`extension/` is a small Chrome extension (Manifest V3, `sidePanel` permission only). Clicking its toolbar icon opens a side panel beside Gmail. The panel is an iframe of this page with `?panel=1`.
+- `?panel=1` adds `class="panel"` to `<html>`. CSS under `html.panel` hides the PDF tools, mode buttons and how-to, and makes the Templates form one narrow column. After sign-in, `wsApply` switches to Templates mode. Without the option, nothing changes.
+- The panel is the live page, so site changes reach every center with no extension update. Only change `extension/` when the panel's own wrapper needs to change, and then bump `version` in `extension/manifest.json`.
+- Staff copy the generated email (rich text) and paste it into Gmail. The extension never touches Gmail and holds no passwords or student data.
+- Distribution: unlisted Chrome Web Store listing (one-time developer fee). Listing text and install steps are in `extension/README.md`.
+- Keep the iframe URL in `extension/panel.html` pointed at the live Pages address.
+
 ## Settings and centers (device settings, used when offline)
 - Settings are saved in the browser (`localStorage`, key `emailBuilderSettings.v1`), per device.
 - `settings.centers` holds each center's short name, full name, and default checkboxes (scheduling, Learning Plan, homework). MEV and WL are the seeded defaults.
@@ -85,7 +93,7 @@ Staff submit nominations in a Google Form. In SotM mode the page loads them, run
 
 ## Testing
 No test framework. Two kinds of checks:
-1. `node tests/smoke.mjs` runs with no PDFs: page loads, Settings works, no errors. Run this before every upload. See `tests/README.md` for setup.
+1. `node tests/smoke.mjs` runs with no PDFs: page loads, Settings works, no errors. Run this before every upload. See `tests/README.md` for setup. The test helper blocks the real workspace and hides the sign-in screen, so tests never sign in anywhere.
 2. For anything that touches PDF reading or email wording, run real reports through the page with `tests/e2e.mjs` (helper: `openApp`, `analyze`) and compare the email text before and after your change. Keep test PDFs in `tests/pdfs/` on your own computer only. They are git-ignored.
 
 Always check that unrelated emails did not change. Most regressions in this project were a fix for one report layout quietly changing another.

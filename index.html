@@ -9,12 +9,16 @@
     3. Modals          #setModal (Settings) and #bugModal (Report a problem).
     4. <script>        all the logic. Sections are listed in the next comment.
 
+  The Gmail side panel is the same page opened with ?panel=1 (see html.panel in the
+  CSS and wsApply). The Chrome extension that opens it lives in extension/.
+
   Rules for editing are in CLAUDE.md. Bump APP_VERSION (in the BUG REPORT
   section) on every change.
 -->
 <head>
 <meta charset="UTF-8">
 <title>Email Builder - Exponential Potential Mathnasiums</title>
+<script>try{ if(new URLSearchParams(location.search).get('panel')) document.documentElement.classList.add('panel'); }catch(e){}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   /*
@@ -310,6 +314,17 @@
   #tplEditModal .tbox{background:#fff;border-radius:10px;padding:18px;max-width:640px;width:100%;max-height:94vh;overflow:auto;}
   #tplEdBody{border:1px solid var(--line);border-radius:6px;min-height:240px;padding:10px;font-size:14.5px;line-height:1.5;}
   .tpl-blank-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 14px;}
+  /* Gmail side panel (?panel=1, used by the Chrome extension): templates only, one narrow column. */
+  html.panel .wrap{padding:0 12px;}
+  html.panel header.top .wordmark, html.panel header.top p, html.panel #bugOpen, html.panel #appVersion{display:none;}
+  html.panel header.top h1{font-size:20px;margin:0 0 6px;}
+  html.panel header.top{padding:12px 0;}
+  html.panel details.howto, html.panel .top-controls, html.panel #studentTabsHost, html.panel .footer-note{display:none !important;}
+  html.panel .step-head .hint{display:none;}
+  html.panel .tpl-blank-grid{grid-template-columns:1fr;}
+  html.panel #tplPick, html.panel #tplPronoun{max-width:none;}
+  html.panel #emailToolbar{flex-wrap:wrap;}
+  html.panel body{padding-bottom:24px;}
   /* Student of the Month nominations + raffle wheel */
   .nom-box{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;background:#fafafa;}
   .nom-box h3{margin:0 0 4px;font-size:15px;}
@@ -5011,6 +5026,8 @@ function wsApply(){
   wsEl('wsGate').classList.remove('open');
   wsEl('modeLabelTpl').style.display = '';
   wsEl('wsSignOutLink').style.display = '';
+  // In the Gmail side panel the page opens straight on Templates.
+  if(document.documentElement.classList.contains('panel')){ wsEl('modeLabelTpl').querySelector('input').checked = true; applyEmailModeVisibility(); }
   if(document.querySelector('input[name="emailMode"]:checked').value === 'tpl') tplRender();
 }
 async function wsDoSignIn(){
@@ -6324,7 +6341,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.05-d';
+const APP_VERSION = '2026.11.17-a';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){

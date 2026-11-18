@@ -38,6 +38,14 @@ export async function openApp(){
     }
     return route.fulfill({status: 200, body: ''});
   });
+  // The page asks staff to sign in to the workspace. Tests never call the real one:
+  // block it and hide the sign-in screen so the PDF tools can be reached.
+  await page.route('https://script.google.com/**', route => route.abort());
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      const s = document.createElement('style'); s.textContent = '#wsGate{display:none !important}'; document.head.appendChild(s);
+    });
+  });
   await page.goto(`http://localhost:${port}/`);
   return { page, errors, close: async () => { await browser.close(); server.close(); } };
 }
