@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Mathnasium Email Templates",
+  "version": "1.0.0",
+  "description": "Opens the center's email templates in a side panel next to Gmail. Pick a template, fill in the blanks, copy, and paste into your email.",
+  "permissions": ["sidePanel"],
+  "action": { "default_title": "Email templates" },
+  "side_panel": { "default_path": "panel.html" },
+  "background": { "service_worker": "background.js" },
+  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+}
