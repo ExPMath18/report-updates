@@ -45,4 +45,6 @@ Staff at participating Mathnasium centers use this to write parent emails faster
 
 **Privacy statement:** This extension does not sell personal data and does not read your Gmail or any web page. The side panel loads the Email Builder page (expmath18.github.io/report-updates). The only information sent anywhere is the center name and password, which go to the center's own template workspace so staff can sign in; the panel remembers that sign-in on the computer. Templates contain no student information. Anything staff type into the blanks stays in the panel and is not sent anywhere.
 
+**Privacy policy URL:** https://expmath18.github.io/report-updates/privacy.html
+
 **Category:** Productivity
