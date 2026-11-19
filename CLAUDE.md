@@ -71,6 +71,7 @@ Each center signs in with its own password. Its settings and email templates liv
 - Staff copy the generated email (rich text) and paste it into Gmail. The extension never touches Gmail and holds no passwords or student data.
 - Distribution: unlisted Chrome Web Store listing (one-time developer fee). Listing text and install steps are in `extension/README.md`.
 - Keep the iframe URL in `extension/panel.html` pointed at the live Pages address.
+- `privacy.html` is the privacy page (the Web Store needs its URL). It is linked from a small footer link on the main page. If what the tool stores or sends changes, update it.
 
 ## Settings and centers (device settings, used when offline)
 - Settings are saved in the browser (`localStorage`, key `emailBuilderSettings.v1`), per device.
