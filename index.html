@@ -319,8 +319,18 @@
   html.panel header.top .wordmark, html.panel header.top p, html.panel #bugOpen, html.panel #appVersion{display:none;}
   html.panel header.top h1{font-size:20px;margin:0 0 6px;}
   html.panel header.top{padding:12px 0;}
-  html.panel details.howto, html.panel .top-controls, html.panel #studentTabsHost, html.panel .footer-note{display:none !important;}
+  html.panel details.howto, html.panel #emailCenterToggle, html.panel .footer-note{display:none !important;}
+  html.panel .top-controls{margin-top:12px;}
+  html.panel .mode-toggle{flex-direction:column;}
+  html.panel .mode-toggle label{text-align:left;padding:10px 12px;border-right:none;border-bottom:1px solid var(--line);}
+  html.panel .mode-toggle label:last-child{border-bottom:none;}
   html.panel .step-head .hint{display:none;}
+  html.panel .meta-grid{grid-template-columns:1fr;}
+  html.panel .field{min-width:0;}
+  html.panel .status, html.panel .sort-summary, html.panel .desc{overflow-wrap:anywhere;}
+  html.panel #tableHost{overflow-x:auto;}
+  html.panel table.results{min-width:560px;}
+  html.panel .tbl-scroll{overflow-x:auto;}
   html.panel .tpl-blank-grid{grid-template-columns:1fr;}
   html.panel #tplPick, html.panel #tplPronoun{max-width:none;}
   html.panel #emailToolbar{flex-wrap:wrap;}
@@ -3338,7 +3348,7 @@ function renderExtra(){
         </div>
         ${expanded ? uploadGridHtml : sourceSummaryHtml}
         <div class="extraStatus status${card._statusClass ? ' '+card._statusClass : ''}" data-id="${card.id}">${card._statusText ? escapeAttr(card._statusText) : ''}</div>
-        <table class="results" style="margin-top:8px;">
+        <div class="tbl-scroll"><table class="results" style="margin-top:8px;">
           <thead><tr>
             <th>Topic / note</th>
             ${hasComparison ? `<th style="width:70px;">Prev</th><th style="width:70px;">Curr</th>` : `<th style="width:70px;">Score</th>`}
@@ -3356,7 +3366,7 @@ function renderExtra(){
               <td><button class="tag-del extraDelRow" data-id="${card.id}" data-ti="${ti}">✕</button></td>
             </tr>`).join('')}
           </tbody>
-        </table>
+        </table></div>
         <button class="btn-secondary btn-sm" style="margin-top:8px;" data-id="${card.id}" id="extraAddRow_${card.id}">+ topic / note</button>
       </div>
     </div>`;
@@ -6341,7 +6351,7 @@ document.getElementById('copyHeaderBtn').addEventListener('click', async ()=>{
    BUG REPORT (Report a problem button, APP_VERSION lives here)
 --------------------------------------------------------- */
 // ===== Bug report =====
-const APP_VERSION = '2026.11.19-a';
+const APP_VERSION = '2026.11.25-a';
 const BUG_REPORT_URL = 'https://script.google.com/macros/s/AKfycbx1y1pkp-b2_a2J0tIceetKmjm-h3WmoXHT6j50gdjlnAS0ir4a3mE5ve9t_h-BqW9v7Q/exec';
 const BUG_REPORT_TOKEN = 'banapples';
 (function(){
