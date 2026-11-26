@@ -65,8 +65,9 @@ Each center signs in with its own password. Its settings and email templates liv
 - Student of the Month nominations are separate (see below) and use their own password.
 
 ## Gmail side panel (Chrome extension)
-`extension/` is a small Chrome extension (Manifest V3, `sidePanel` permission only). Clicking its toolbar icon opens a side panel beside Gmail. The panel is an iframe of this page with `?panel=1`.
-- `?panel=1` adds `class="panel"` to `<html>`. CSS under `html.panel` hides the PDF tools, mode buttons and how-to, and makes the Templates form one narrow column. After sign-in, `wsApply` switches to Templates mode. Without the option, nothing changes.
+`extension/` is a small Chrome extension (Manifest V3, `sidePanel` permission only). Clicking its toolbar icon opens a side panel beside Gmail. The panel is an iframe of this page with `?panel=1`, so staff can build Progress Update and RFA emails and use templates without leaving Gmail.
+- `?panel=1` adds `class="panel"` to `<html>`. CSS under `html.panel` keeps all the builders (Progress Update, RFA, Templates) and hides only the center toggle and how-to, stacks the mode buttons, and makes the forms one narrow column. The skill tables scroll sideways inside their own box (`#tableHost`, `.tbl-scroll`). After sign-in, `wsApply` opens on Templates. Without the option, nothing changes.
+- Check layout changes at 400px and 700px wide. A document-level overflow check is not enough, because the cards clip their content; look for elements wider than the window.
 - The panel is the live page, so site changes reach every center with no extension update. Only change `extension/` when the panel's own wrapper needs to change, and then bump `version` in `extension/manifest.json`.
 - Staff copy the generated email (rich text) and paste it into Gmail. The extension never touches Gmail and holds no passwords or student data.
 - Distribution: unlisted Chrome Web Store listing (one-time developer fee). Listing text and install steps are in `extension/README.md`.
